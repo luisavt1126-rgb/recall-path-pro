@@ -14,7 +14,395 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      anki_decks: {
+        Row: {
+          created_at: string
+          id: string
+          interval_days: number
+          last_review_at: string | null
+          name: string
+          next_review_at: string | null
+          status: string
+          subject_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interval_days?: number
+          last_review_at?: string | null
+          name: string
+          next_review_at?: string | null
+          status?: string
+          subject_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interval_days?: number
+          last_review_at?: string | null
+          name?: string
+          next_review_at?: string | null
+          status?: string
+          subject_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anki_decks_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_sessions: {
+        Row: {
+          cards_reviewed: number
+          deck_id: string
+          id: string
+          rating: string | null
+          reviewed_at: string
+          user_id: string
+        }
+        Insert: {
+          cards_reviewed?: number
+          deck_id: string
+          id?: string
+          rating?: string | null
+          reviewed_at?: string
+          user_id: string
+        }
+        Update: {
+          cards_reviewed?: number
+          deck_id?: string
+          id?: string
+          rating?: string | null
+          reviewed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_sessions_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "anki_decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      disciplines: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          category: string
+          created_at: string
+          duration_min: number
+          id: string
+          notes: string | null
+          starts_at: string
+          status: string
+          subject_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          duration_min?: number
+          id?: string
+          notes?: string | null
+          starts_at: string
+          status?: string
+          subject_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          duration_min?: number
+          id?: string
+          notes?: string | null
+          starts_at?: string
+          status?: string
+          subject_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          name: string | null
+          weekly_goal_hours: number
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          name?: string | null
+          weekly_goal_hours?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string | null
+          weekly_goal_hours?: number
+        }
+        Relationships: []
+      }
+      question_logs: {
+        Row: {
+          banca: string | null
+          correct: number
+          created_at: string
+          discipline_id: string | null
+          id: string
+          subject_id: string | null
+          total: number
+          user_id: string
+          year: number | null
+        }
+        Insert: {
+          banca?: string | null
+          correct: number
+          created_at?: string
+          discipline_id?: string | null
+          id?: string
+          subject_id?: string | null
+          total: number
+          user_id: string
+          year?: number | null
+        }
+        Update: {
+          banca?: string | null
+          correct?: number
+          created_at?: string
+          discipline_id?: string | null
+          id?: string
+          subject_id?: string | null
+          total?: number
+          user_id?: string
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_logs_discipline_id_fkey"
+            columns: ["discipline_id"]
+            isOneToOne: false
+            referencedRelation: "disciplines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_logs_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reviews: {
+        Row: {
+          id: string
+          interval_after: number
+          interval_before: number
+          rating: string
+          reviewed_at: string
+          subject_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          interval_after?: number
+          interval_before?: number
+          rating: string
+          reviewed_at?: string
+          subject_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          interval_after?: number
+          interval_before?: number
+          rating?: string
+          reviewed_at?: string
+          subject_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_sessions: {
+        Row: {
+          activity_type: string
+          created_at: string
+          discipline_id: string | null
+          id: string
+          minutes: number
+          notes: string | null
+          started_at: string
+          subject_id: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_type?: string
+          created_at?: string
+          discipline_id?: string | null
+          id?: string
+          minutes: number
+          notes?: string | null
+          started_at?: string
+          subject_id?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          discipline_id?: string | null
+          id?: string
+          minutes?: number
+          notes?: string | null
+          started_at?: string
+          subject_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_sessions_discipline_id_fkey"
+            columns: ["discipline_id"]
+            isOneToOne: false
+            referencedRelation: "disciplines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_sessions_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subjects: {
+        Row: {
+          created_at: string
+          difficulty: number
+          discipline_id: string
+          ease: number
+          exam_incidence: number
+          first_studied_at: string | null
+          id: string
+          interval_days: number
+          lapses: number
+          last_studied_at: string | null
+          mastery: number
+          name: string
+          next_review_at: string | null
+          parent_id: string | null
+          reps: number
+          review_count: number
+          stability: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty?: number
+          discipline_id: string
+          ease?: number
+          exam_incidence?: number
+          first_studied_at?: string | null
+          id?: string
+          interval_days?: number
+          lapses?: number
+          last_studied_at?: string | null
+          mastery?: number
+          name: string
+          next_review_at?: string | null
+          parent_id?: string | null
+          reps?: number
+          review_count?: number
+          stability?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: number
+          discipline_id?: string
+          ease?: number
+          exam_incidence?: number
+          first_studied_at?: string | null
+          id?: string
+          interval_days?: number
+          lapses?: number
+          last_studied_at?: string | null
+          mastery?: number
+          name?: string
+          next_review_at?: string | null
+          parent_id?: string | null
+          reps?: number
+          review_count?: number
+          stability?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subjects_discipline_id_fkey"
+            columns: ["discipline_id"]
+            isOneToOne: false
+            referencedRelation: "disciplines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subjects_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
