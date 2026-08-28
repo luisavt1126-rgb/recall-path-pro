@@ -12,8 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedAssuntosRouteImport } from './routes/_authenticated/assuntos'
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
+import { Route as AuthenticatedAssuntosIndexRouteImport } from './routes/_authenticated/assuntos.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,49 +29,50 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAssuntosRoute = AuthenticatedAssuntosRouteImport.update({
-  id: '/assuntos',
-  path: '/assuntos',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedHojeRoute = AuthenticatedHojeRouteImport.update({
   id: '/hoje',
   path: '/hoje',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAssuntosIndexRoute =
+  AuthenticatedAssuntosIndexRouteImport.update({
+    id: '/assuntos/',
+    path: '/assuntos/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/assuntos': typeof AuthenticatedAssuntosRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/assuntos/': typeof AuthenticatedAssuntosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/assuntos': typeof AuthenticatedAssuntosRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/assuntos': typeof AuthenticatedAssuntosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/_authenticated/assuntos': typeof AuthenticatedAssuntosRoute
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
+  '/_authenticated/assuntos/': typeof AuthenticatedAssuntosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/assuntos' | '/hoje'
+  fullPaths: '/' | '/auth' | '/hoje' | '/assuntos/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/assuntos' | '/hoje'
+  to: '/' | '/auth' | '/hoje' | '/assuntos'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
-    | '/_authenticated/assuntos'
     | '/_authenticated/hoje'
+    | '/_authenticated/assuntos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -103,13 +104,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/assuntos': {
-      id: '/_authenticated/assuntos'
-      path: '/assuntos'
-      fullPath: '/assuntos'
-      preLoaderRoute: typeof AuthenticatedAssuntosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/hoje': {
       id: '/_authenticated/hoje'
       path: '/hoje'
@@ -117,17 +111,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHojeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/assuntos/': {
+      id: '/_authenticated/assuntos/'
+      path: '/assuntos'
+      fullPath: '/assuntos/'
+      preLoaderRoute: typeof AuthenticatedAssuntosIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAssuntosRoute: typeof AuthenticatedAssuntosRoute
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
+  AuthenticatedAssuntosIndexRoute: typeof AuthenticatedAssuntosIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAssuntosRoute: AuthenticatedAssuntosRoute,
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
+  AuthenticatedAssuntosIndexRoute: AuthenticatedAssuntosIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
