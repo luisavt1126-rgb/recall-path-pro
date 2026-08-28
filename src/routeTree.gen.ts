@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedBaralhosRouteImport } from './routes/_authenticated/baralhos'
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
 import { Route as AuthenticatedRevisoesRouteImport } from './routes/_authenticated/revisoes'
 import { Route as AuthenticatedAssuntosIndexRouteImport } from './routes/_authenticated/assuntos.index'
@@ -30,6 +31,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedBaralhosRoute = AuthenticatedBaralhosRouteImport.update({
+  id: '/baralhos',
+  path: '/baralhos',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedHojeRoute = AuthenticatedHojeRouteImport.update({
   id: '/hoje',
@@ -56,6 +62,7 @@ const AuthenticatedAssuntosIdRoute = AuthenticatedAssuntosIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/baralhos': typeof AuthenticatedBaralhosRoute
   '/hoje': typeof AuthenticatedHojeRoute
   '/revisoes': typeof AuthenticatedRevisoesRoute
   '/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/baralhos': typeof AuthenticatedBaralhosRoute
   '/hoje': typeof AuthenticatedHojeRoute
   '/revisoes': typeof AuthenticatedRevisoesRoute
   '/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
@@ -74,6 +82,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/baralhos': typeof AuthenticatedBaralhosRoute
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
   '/_authenticated/revisoes': typeof AuthenticatedRevisoesRoute
   '/_authenticated/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
@@ -82,14 +91,28 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/hoje' | '/revisoes' | '/assuntos/$id' | '/assuntos/'
+    | '/'
+    | '/auth'
+    | '/baralhos'
+    | '/hoje'
+    | '/revisoes'
+    | '/assuntos/$id'
+    | '/assuntos/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/hoje' | '/revisoes' | '/assuntos/$id' | '/assuntos'
+  to:
+    | '/'
+    | '/auth'
+    | '/baralhos'
+    | '/hoje'
+    | '/revisoes'
+    | '/assuntos/$id'
+    | '/assuntos'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/baralhos'
     | '/_authenticated/hoje'
     | '/_authenticated/revisoes'
     | '/_authenticated/assuntos/$id'
@@ -125,6 +148,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/baralhos': {
+      id: '/_authenticated/baralhos'
+      path: '/baralhos'
+      fullPath: '/baralhos'
+      preLoaderRoute: typeof AuthenticatedBaralhosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/hoje': {
       id: '/_authenticated/hoje'
       path: '/hoje'
@@ -157,6 +187,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedBaralhosRoute: typeof AuthenticatedBaralhosRoute
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
   AuthenticatedRevisoesRoute: typeof AuthenticatedRevisoesRoute
   AuthenticatedAssuntosIdRoute: typeof AuthenticatedAssuntosIdRoute
@@ -164,6 +195,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedBaralhosRoute: AuthenticatedBaralhosRoute,
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
   AuthenticatedRevisoesRoute: AuthenticatedRevisoesRoute,
   AuthenticatedAssuntosIdRoute: AuthenticatedAssuntosIdRoute,
