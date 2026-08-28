@@ -15,7 +15,7 @@ import { priorityLevel, priorityScore } from "@/lib/priority";
 import { Panel, PriorityTag, Field, inputClass, buttonClass, Empty } from "@/components/bits";
 import { formatDate } from "@/lib/format";
 
-export const Route = createFileRoute("/_authenticated/assuntos")({
+export const Route = createFileRoute("/_authenticated/assuntos/")({
   head: () => ({
     meta: [
       { title: "Assuntos · Residuum" },
