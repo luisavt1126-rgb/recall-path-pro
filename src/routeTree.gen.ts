@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedBaralhosRouteImport } from './routes/_authenticated/baralhos'
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
+import { Route as AuthenticatedQuestoesRouteImport } from './routes/_authenticated/questoes'
 import { Route as AuthenticatedRevisoesRouteImport } from './routes/_authenticated/revisoes'
 import { Route as AuthenticatedAssuntosIndexRouteImport } from './routes/_authenticated/assuntos.index'
 import { Route as AuthenticatedAssuntosIdRouteImport } from './routes/_authenticated/assuntos.$id'
@@ -42,6 +43,11 @@ const AuthenticatedHojeRoute = AuthenticatedHojeRouteImport.update({
   path: '/hoje',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedQuestoesRoute = AuthenticatedQuestoesRouteImport.update({
+  id: '/questoes',
+  path: '/questoes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedRevisoesRoute = AuthenticatedRevisoesRouteImport.update({
   id: '/revisoes',
   path: '/revisoes',
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/baralhos': typeof AuthenticatedBaralhosRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/questoes': typeof AuthenticatedQuestoesRoute
   '/revisoes': typeof AuthenticatedRevisoesRoute
   '/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/assuntos/': typeof AuthenticatedAssuntosIndexRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/baralhos': typeof AuthenticatedBaralhosRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/questoes': typeof AuthenticatedQuestoesRoute
   '/revisoes': typeof AuthenticatedRevisoesRoute
   '/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/assuntos': typeof AuthenticatedAssuntosIndexRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/baralhos': typeof AuthenticatedBaralhosRoute
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
+  '/_authenticated/questoes': typeof AuthenticatedQuestoesRoute
   '/_authenticated/revisoes': typeof AuthenticatedRevisoesRoute
   '/_authenticated/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/_authenticated/assuntos/': typeof AuthenticatedAssuntosIndexRoute
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/baralhos'
     | '/hoje'
+    | '/questoes'
     | '/revisoes'
     | '/assuntos/$id'
     | '/assuntos/'
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/baralhos'
     | '/hoje'
+    | '/questoes'
     | '/revisoes'
     | '/assuntos/$id'
     | '/assuntos'
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/baralhos'
     | '/_authenticated/hoje'
+    | '/_authenticated/questoes'
     | '/_authenticated/revisoes'
     | '/_authenticated/assuntos/$id'
     | '/_authenticated/assuntos/'
@@ -162,6 +174,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHojeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/questoes': {
+      id: '/_authenticated/questoes'
+      path: '/questoes'
+      fullPath: '/questoes'
+      preLoaderRoute: typeof AuthenticatedQuestoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/revisoes': {
       id: '/_authenticated/revisoes'
       path: '/revisoes'
@@ -189,6 +208,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBaralhosRoute: typeof AuthenticatedBaralhosRoute
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
+  AuthenticatedQuestoesRoute: typeof AuthenticatedQuestoesRoute
   AuthenticatedRevisoesRoute: typeof AuthenticatedRevisoesRoute
   AuthenticatedAssuntosIdRoute: typeof AuthenticatedAssuntosIdRoute
   AuthenticatedAssuntosIndexRoute: typeof AuthenticatedAssuntosIndexRoute
@@ -197,6 +217,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBaralhosRoute: AuthenticatedBaralhosRoute,
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
+  AuthenticatedQuestoesRoute: AuthenticatedQuestoesRoute,
   AuthenticatedRevisoesRoute: AuthenticatedRevisoesRoute,
   AuthenticatedAssuntosIdRoute: AuthenticatedAssuntosIdRoute,
   AuthenticatedAssuntosIndexRoute: AuthenticatedAssuntosIndexRoute,
