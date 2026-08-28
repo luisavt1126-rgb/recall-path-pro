@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
+import { Route as AuthenticatedRevisoesRouteImport } from './routes/_authenticated/revisoes'
 import { Route as AuthenticatedAssuntosIndexRouteImport } from './routes/_authenticated/assuntos.index'
 import { Route as AuthenticatedAssuntosIdRouteImport } from './routes/_authenticated/assuntos.$id'
 
@@ -35,6 +36,11 @@ const AuthenticatedHojeRoute = AuthenticatedHojeRouteImport.update({
   path: '/hoje',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRevisoesRoute = AuthenticatedRevisoesRouteImport.update({
+  id: '/revisoes',
+  path: '/revisoes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAssuntosIndexRoute =
   AuthenticatedAssuntosIndexRouteImport.update({
     id: '/assuntos/',
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/revisoes': typeof AuthenticatedRevisoesRoute
   '/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/assuntos/': typeof AuthenticatedAssuntosIndexRoute
 }
@@ -58,6 +65,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/revisoes': typeof AuthenticatedRevisoesRoute
   '/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/assuntos': typeof AuthenticatedAssuntosIndexRoute
 }
@@ -67,20 +75,23 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
+  '/_authenticated/revisoes': typeof AuthenticatedRevisoesRoute
   '/_authenticated/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/_authenticated/assuntos/': typeof AuthenticatedAssuntosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/hoje' | '/assuntos/$id' | '/assuntos/'
+  fullPaths:
+    '/' | '/auth' | '/hoje' | '/revisoes' | '/assuntos/$id' | '/assuntos/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/hoje' | '/assuntos/$id' | '/assuntos'
+  to: '/' | '/auth' | '/hoje' | '/revisoes' | '/assuntos/$id' | '/assuntos'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/hoje'
+    | '/_authenticated/revisoes'
     | '/_authenticated/assuntos/$id'
     | '/_authenticated/assuntos/'
   fileRoutesById: FileRoutesById
@@ -121,6 +132,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHojeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/revisoes': {
+      id: '/_authenticated/revisoes'
+      path: '/revisoes'
+      fullPath: '/revisoes'
+      preLoaderRoute: typeof AuthenticatedRevisoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/assuntos/': {
       id: '/_authenticated/assuntos/'
       path: '/assuntos'
@@ -140,12 +158,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
+  AuthenticatedRevisoesRoute: typeof AuthenticatedRevisoesRoute
   AuthenticatedAssuntosIdRoute: typeof AuthenticatedAssuntosIdRoute
   AuthenticatedAssuntosIndexRoute: typeof AuthenticatedAssuntosIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
+  AuthenticatedRevisoesRoute: AuthenticatedRevisoesRoute,
   AuthenticatedAssuntosIdRoute: AuthenticatedAssuntosIdRoute,
   AuthenticatedAssuntosIndexRoute: AuthenticatedAssuntosIndexRoute,
 }
