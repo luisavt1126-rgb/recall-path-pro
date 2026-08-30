@@ -17,6 +17,7 @@ import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authentic
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
 import { Route as AuthenticatedQuestoesRouteImport } from './routes/_authenticated/questoes'
 import { Route as AuthenticatedRevisoesRouteImport } from './routes/_authenticated/revisoes'
+import { Route as AuthenticatedTemporizadorRouteImport } from './routes/_authenticated/temporizador'
 import { Route as AuthenticatedAssuntosIndexRouteImport } from './routes/_authenticated/assuntos.index'
 import { Route as AuthenticatedAssuntosIdRouteImport } from './routes/_authenticated/assuntos.$id'
 
@@ -59,6 +60,12 @@ const AuthenticatedRevisoesRoute = AuthenticatedRevisoesRouteImport.update({
   path: '/revisoes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTemporizadorRoute =
+  AuthenticatedTemporizadorRouteImport.update({
+    id: '/temporizador',
+    path: '/temporizador',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAssuntosIndexRoute =
   AuthenticatedAssuntosIndexRouteImport.update({
     id: '/assuntos/',
@@ -79,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/hoje': typeof AuthenticatedHojeRoute
   '/questoes': typeof AuthenticatedQuestoesRoute
   '/revisoes': typeof AuthenticatedRevisoesRoute
+  '/temporizador': typeof AuthenticatedTemporizadorRoute
   '/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/assuntos/': typeof AuthenticatedAssuntosIndexRoute
 }
@@ -90,6 +98,7 @@ export interface FileRoutesByTo {
   '/hoje': typeof AuthenticatedHojeRoute
   '/questoes': typeof AuthenticatedQuestoesRoute
   '/revisoes': typeof AuthenticatedRevisoesRoute
+  '/temporizador': typeof AuthenticatedTemporizadorRoute
   '/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/assuntos': typeof AuthenticatedAssuntosIndexRoute
 }
@@ -103,6 +112,7 @@ export interface FileRoutesById {
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
   '/_authenticated/questoes': typeof AuthenticatedQuestoesRoute
   '/_authenticated/revisoes': typeof AuthenticatedRevisoesRoute
+  '/_authenticated/temporizador': typeof AuthenticatedTemporizadorRoute
   '/_authenticated/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/_authenticated/assuntos/': typeof AuthenticatedAssuntosIndexRoute
 }
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/hoje'
     | '/questoes'
     | '/revisoes'
+    | '/temporizador'
     | '/assuntos/$id'
     | '/assuntos/'
   fileRoutesByTo: FileRoutesByTo
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/hoje'
     | '/questoes'
     | '/revisoes'
+    | '/temporizador'
     | '/assuntos/$id'
     | '/assuntos'
   id:
@@ -139,6 +151,7 @@ export interface FileRouteTypes {
     | '/_authenticated/hoje'
     | '/_authenticated/questoes'
     | '/_authenticated/revisoes'
+    | '/_authenticated/temporizador'
     | '/_authenticated/assuntos/$id'
     | '/_authenticated/assuntos/'
   fileRoutesById: FileRoutesById
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRevisoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/temporizador': {
+      id: '/_authenticated/temporizador'
+      path: '/temporizador'
+      fullPath: '/temporizador'
+      preLoaderRoute: typeof AuthenticatedTemporizadorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/assuntos/': {
       id: '/_authenticated/assuntos/'
       path: '/assuntos'
@@ -230,6 +250,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
   AuthenticatedQuestoesRoute: typeof AuthenticatedQuestoesRoute
   AuthenticatedRevisoesRoute: typeof AuthenticatedRevisoesRoute
+  AuthenticatedTemporizadorRoute: typeof AuthenticatedTemporizadorRoute
   AuthenticatedAssuntosIdRoute: typeof AuthenticatedAssuntosIdRoute
   AuthenticatedAssuntosIndexRoute: typeof AuthenticatedAssuntosIndexRoute
 }
@@ -240,6 +261,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
   AuthenticatedQuestoesRoute: AuthenticatedQuestoesRoute,
   AuthenticatedRevisoesRoute: AuthenticatedRevisoesRoute,
+  AuthenticatedTemporizadorRoute: AuthenticatedTemporizadorRoute,
   AuthenticatedAssuntosIdRoute: AuthenticatedAssuntosIdRoute,
   AuthenticatedAssuntosIndexRoute: AuthenticatedAssuntosIndexRoute,
 }
