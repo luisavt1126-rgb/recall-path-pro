@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedBaralhosRouteImport } from './routes/_authenticated/baralhos'
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
+import { Route as AuthenticatedGraficosRouteImport } from './routes/_authenticated/graficos'
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
 import { Route as AuthenticatedQuestoesRouteImport } from './routes/_authenticated/questoes'
 import { Route as AuthenticatedRevisoesRouteImport } from './routes/_authenticated/revisoes'
@@ -43,6 +44,11 @@ const AuthenticatedBaralhosRoute = AuthenticatedBaralhosRouteImport.update({
 const AuthenticatedCalendarioRoute = AuthenticatedCalendarioRouteImport.update({
   id: '/calendario',
   path: '/calendario',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedGraficosRoute = AuthenticatedGraficosRouteImport.update({
+  id: '/graficos',
+  path: '/graficos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedHojeRoute = AuthenticatedHojeRouteImport.update({
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/baralhos': typeof AuthenticatedBaralhosRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
+  '/graficos': typeof AuthenticatedGraficosRoute
   '/hoje': typeof AuthenticatedHojeRoute
   '/questoes': typeof AuthenticatedQuestoesRoute
   '/revisoes': typeof AuthenticatedRevisoesRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/baralhos': typeof AuthenticatedBaralhosRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
+  '/graficos': typeof AuthenticatedGraficosRoute
   '/hoje': typeof AuthenticatedHojeRoute
   '/questoes': typeof AuthenticatedQuestoesRoute
   '/revisoes': typeof AuthenticatedRevisoesRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/baralhos': typeof AuthenticatedBaralhosRoute
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
+  '/_authenticated/graficos': typeof AuthenticatedGraficosRoute
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
   '/_authenticated/questoes': typeof AuthenticatedQuestoesRoute
   '/_authenticated/revisoes': typeof AuthenticatedRevisoesRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/baralhos'
     | '/calendario'
+    | '/graficos'
     | '/hoje'
     | '/questoes'
     | '/revisoes'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/baralhos'
     | '/calendario'
+    | '/graficos'
     | '/hoje'
     | '/questoes'
     | '/revisoes'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/baralhos'
     | '/_authenticated/calendario'
+    | '/_authenticated/graficos'
     | '/_authenticated/hoje'
     | '/_authenticated/questoes'
     | '/_authenticated/revisoes'
@@ -199,6 +211,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCalendarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/graficos': {
+      id: '/_authenticated/graficos'
+      path: '/graficos'
+      fullPath: '/graficos'
+      preLoaderRoute: typeof AuthenticatedGraficosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/hoje': {
       id: '/_authenticated/hoje'
       path: '/hoje'
@@ -247,6 +266,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBaralhosRoute: typeof AuthenticatedBaralhosRoute
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
+  AuthenticatedGraficosRoute: typeof AuthenticatedGraficosRoute
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
   AuthenticatedQuestoesRoute: typeof AuthenticatedQuestoesRoute
   AuthenticatedRevisoesRoute: typeof AuthenticatedRevisoesRoute
@@ -258,6 +278,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBaralhosRoute: AuthenticatedBaralhosRoute,
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
+  AuthenticatedGraficosRoute: AuthenticatedGraficosRoute,
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
   AuthenticatedQuestoesRoute: AuthenticatedQuestoesRoute,
   AuthenticatedRevisoesRoute: AuthenticatedRevisoesRoute,
