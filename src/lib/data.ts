@@ -194,7 +194,10 @@ export const EVENT_CATEGORIES = [
 
 export function categoryMeta(value: string) {
   return (
-    EVENT_CATEGORIES.find((c) => c.value === value) ??
-    EVENT_CATEGORIES[EVENT_CATEGORIES.length - 1]
+    EVENT_CATEGORIES.find((c) => c.value === value) ?? {
+      value: "outro",
+      label: "Outro",
+      color: "bg-muted-foreground",
+    }
   );
 }
