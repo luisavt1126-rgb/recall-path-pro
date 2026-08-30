@@ -20,20 +20,24 @@ export const Route = createFileRoute("/_authenticated/temporizador")({
   component: TimerPage,
 });
 
-const MODES = [
+type Mode = { value: string; label: string; minutes: number };
+
+const MODES: Mode[] = [
   { value: "pomodoro", label: "Pomodoro 25 min", minutes: 25 },
   { value: "longo", label: "Foco 50 min", minutes: 50 },
   { value: "pausa", label: "Pausa 5 min", minutes: 5 },
   { value: "livre", label: "Cronômetro livre", minutes: 0 },
 ];
 
+const DEFAULT_MODE: Mode = MODES[0]!;
+
 function TimerPage() {
   const { data: subjects = [] } = useSubjects();
   const { data: sessions = [] } = useStudySessions();
   const log = useLogStudySession();
 
-  const [mode, setMode] = useState(MODES[0]);
-  const [seconds, setSeconds] = useState(MODES[0].minutes * 60);
+  const [mode, setMode] = useState<Mode>(DEFAULT_MODE);
+  const [seconds, setSeconds] = useState(DEFAULT_MODE.minutes * 60);
   const [running, setRunning] = useState(false);
   const [subjectId, setSubjectId] = useState("");
   const [activity, setActivity] = useState("estudo");
@@ -86,7 +90,7 @@ function TimerPage() {
           label="Média por sessão"
           value={todaySessions.length ? formatHours(todayMinutes / todaySessions.length) : "—"}
         />
-        <Stat label="Modo atual" value={mode.label.split(" ")[0]} hint={mode.label} />
+        <Stat label="Modo atual" value={mode.label.split(" ")[0] ?? mode.label} hint={mode.label} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">

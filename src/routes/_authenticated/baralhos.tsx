@@ -73,7 +73,7 @@ function DecksPage() {
     }) => {
       const userId = await requireUserId();
       const now = new Date();
-      const interval = nextDeckInterval(Number(deck.interval_days), good);
+      const interval = nextDeckInterval(Number(deck.interval_days), good ? "bom" : "dificil");
       const { error } = await supabase.from("deck_sessions").insert({
         user_id: userId,
         deck_id: deck.id,
