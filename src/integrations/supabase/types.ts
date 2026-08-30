@@ -164,6 +164,48 @@ export type Database = {
           },
         ]
       }
+      exams: {
+        Row: {
+          banca: string | null
+          created_at: string
+          exam_date: string
+          id: string
+          location: string | null
+          notes: string | null
+          registration_deadline: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          banca?: string | null
+          created_at?: string
+          exam_date: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          registration_deadline?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          banca?: string | null
+          created_at?: string
+          exam_date?: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          registration_deadline?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
