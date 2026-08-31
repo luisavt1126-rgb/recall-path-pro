@@ -122,6 +122,27 @@ export function useEvents() {
   });
 }
 
+export function useExams() {
+  return useQuery({
+    queryKey: ["exams"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("exams")
+        .select("*")
+        .order("exam_date");
+      if (error) throw error;
+      return data as Exam[];
+    },
+  });
+}
+
+export const EXAM_STATUS = [
+  { value: "planejada", label: "Planejada" },
+  { value: "inscrito", label: "Inscrito" },
+  { value: "realizada", label: "Realizada" },
+  { value: "cancelada", label: "Cancelada" },
+] as const;
+
 export function useReviews(subjectId?: string) {
   return useQuery({
     queryKey: ["reviews", subjectId ?? "all"],
