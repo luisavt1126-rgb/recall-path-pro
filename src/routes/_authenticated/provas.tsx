@@ -232,7 +232,7 @@ function ExamsPage() {
                     <div className="flex items-center gap-2">
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          statusMeta[exam.status] ?? statusMeta.planejada
+                          statusMeta[exam.status] ?? statusMeta["planejada"]
                         }`}
                       >
                         {EXAM_STATUS.find((s) => s.value === exam.status)?.label ?? exam.status}
@@ -305,7 +305,7 @@ function ExamsPage() {
               <div className="flex items-center gap-2">
                 <span
                   className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                    statusMeta[exam.status] ?? statusMeta.planejada
+                    statusMeta[exam.status] ?? statusMeta["planejada"]
                   }`}
                 >
                   {EXAM_STATUS.find((s) => s.value === exam.status)?.label ?? exam.status}
