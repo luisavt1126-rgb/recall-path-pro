@@ -182,7 +182,14 @@ function Dashboard() {
           </div>
         </Panel>
 
-        <Panel title="O que fazer agora">
+        <Panel
+          title="O que estudar hoje"
+          action={
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              prioridade inteligente
+            </span>
+          }
+        >
           <div className="flex flex-col gap-2.5 text-sm">
             {ranked.length === 0 && (
               <Empty>

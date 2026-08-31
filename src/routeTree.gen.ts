@@ -16,6 +16,7 @@ import { Route as AuthenticatedBaralhosRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedGraficosRouteImport } from './routes/_authenticated/graficos'
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
+import { Route as AuthenticatedProvasRouteImport } from './routes/_authenticated/provas'
 import { Route as AuthenticatedQuestoesRouteImport } from './routes/_authenticated/questoes'
 import { Route as AuthenticatedRevisoesRouteImport } from './routes/_authenticated/revisoes'
 import { Route as AuthenticatedTemporizadorRouteImport } from './routes/_authenticated/temporizador'
@@ -56,6 +57,11 @@ const AuthenticatedHojeRoute = AuthenticatedHojeRouteImport.update({
   path: '/hoje',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedProvasRoute = AuthenticatedProvasRouteImport.update({
+  id: '/provas',
+  path: '/provas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedQuestoesRoute = AuthenticatedQuestoesRouteImport.update({
   id: '/questoes',
   path: '/questoes',
@@ -91,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/graficos': typeof AuthenticatedGraficosRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/provas': typeof AuthenticatedProvasRoute
   '/questoes': typeof AuthenticatedQuestoesRoute
   '/revisoes': typeof AuthenticatedRevisoesRoute
   '/temporizador': typeof AuthenticatedTemporizadorRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/graficos': typeof AuthenticatedGraficosRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/provas': typeof AuthenticatedProvasRoute
   '/questoes': typeof AuthenticatedQuestoesRoute
   '/revisoes': typeof AuthenticatedRevisoesRoute
   '/temporizador': typeof AuthenticatedTemporizadorRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
   '/_authenticated/graficos': typeof AuthenticatedGraficosRoute
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
+  '/_authenticated/provas': typeof AuthenticatedProvasRoute
   '/_authenticated/questoes': typeof AuthenticatedQuestoesRoute
   '/_authenticated/revisoes': typeof AuthenticatedRevisoesRoute
   '/_authenticated/temporizador': typeof AuthenticatedTemporizadorRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/graficos'
     | '/hoje'
+    | '/provas'
     | '/questoes'
     | '/revisoes'
     | '/temporizador'
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/graficos'
     | '/hoje'
+    | '/provas'
     | '/questoes'
     | '/revisoes'
     | '/temporizador'
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/_authenticated/calendario'
     | '/_authenticated/graficos'
     | '/_authenticated/hoje'
+    | '/_authenticated/provas'
     | '/_authenticated/questoes'
     | '/_authenticated/revisoes'
     | '/_authenticated/temporizador'
@@ -225,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHojeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/provas': {
+      id: '/_authenticated/provas'
+      path: '/provas'
+      fullPath: '/provas'
+      preLoaderRoute: typeof AuthenticatedProvasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/questoes': {
       id: '/_authenticated/questoes'
       path: '/questoes'
@@ -268,6 +287,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
   AuthenticatedGraficosRoute: typeof AuthenticatedGraficosRoute
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
+  AuthenticatedProvasRoute: typeof AuthenticatedProvasRoute
   AuthenticatedQuestoesRoute: typeof AuthenticatedQuestoesRoute
   AuthenticatedRevisoesRoute: typeof AuthenticatedRevisoesRoute
   AuthenticatedTemporizadorRoute: typeof AuthenticatedTemporizadorRoute
@@ -280,6 +300,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
   AuthenticatedGraficosRoute: AuthenticatedGraficosRoute,
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
+  AuthenticatedProvasRoute: AuthenticatedProvasRoute,
   AuthenticatedQuestoesRoute: AuthenticatedQuestoesRoute,
   AuthenticatedRevisoesRoute: AuthenticatedRevisoesRoute,
   AuthenticatedTemporizadorRoute: AuthenticatedTemporizadorRoute,
