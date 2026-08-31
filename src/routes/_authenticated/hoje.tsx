@@ -1,4 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { requireUserId } from "@/lib/actions";
+import {
+  DECK_KIND_META,
+  recommendDecks,
+  type DeckRecommendation,
+} from "@/lib/recommendations";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import {
   useDecks,
