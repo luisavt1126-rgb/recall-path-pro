@@ -12,6 +12,7 @@ export type QuestionLog = Tables["question_logs"]["Row"];
 export type AnkiDeck = Tables["anki_decks"]["Row"];
 export type DeckSession = Tables["deck_sessions"]["Row"];
 export type AgendaEvent = Tables["events"]["Row"];
+export type Exam = Tables["exams"]["Row"];
 
 async function currentUserId() {
   const { data } = await supabase.auth.getUser();
