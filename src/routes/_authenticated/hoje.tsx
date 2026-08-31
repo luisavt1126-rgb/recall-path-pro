@@ -31,6 +31,7 @@ import {
   formatTime,
   isSameDay,
   startOfWeek,
+  daysBetween,
 } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/hoje")({
@@ -49,6 +50,7 @@ export const Route = createFileRoute("/_authenticated/hoje")({
 });
 
 function Dashboard() {
+  const qc = useQueryClient();
   const { data: profile } = useProfile();
   const { data: subjects = [] } = useSubjects();
   const { data: disciplines = [] } = useDisciplines();
@@ -104,9 +106,26 @@ function Dashboard() {
     .filter((e) => isSameDay(new Date(e.starts_at), today))
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 
-  const decksToday = decks
-    .filter((d) => !d.next_review_at || new Date(d.next_review_at) <= addDays(today, 1))
-    .slice(0, 4);
+  const recommendations = recommendDecks(ranked, decks, today, 4);
+
+  const createDeck = useMutation({
+    mutationFn: async (rec: DeckRecommendation) => {
+      const userId = await requireUserId();
+      const { error } = await supabase.from("anki_decks").insert({
+        user_id: userId,
+        name: rec.title,
+        subject_id: rec.subject.id,
+        status: "novo",
+        next_review_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["anki_decks"] });
+      toast.success("Baralho criado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const weeks = Array.from({ length: 8 }, (_, i) => {
     const start = addDays(weekStart, -7 * (7 - i));
