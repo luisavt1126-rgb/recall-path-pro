@@ -124,6 +124,7 @@ export type Database = {
           duration_min: number
           id: string
           notes: string | null
+          plan_tag: string | null
           starts_at: string
           status: string
           subject_id: string | null
@@ -136,6 +137,7 @@ export type Database = {
           duration_min?: number
           id?: string
           notes?: string | null
+          plan_tag?: string | null
           starts_at: string
           status?: string
           subject_id?: string | null
@@ -148,6 +150,7 @@ export type Database = {
           duration_min?: number
           id?: string
           notes?: string | null
+          plan_tag?: string | null
           starts_at?: string
           status?: string
           subject_id?: string | null
@@ -160,6 +163,100 @@ export type Database = {
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_analyses: {
+        Row: {
+          banca: string | null
+          created_at: string
+          exam_id: string | null
+          id: string
+          source: string
+          summary: string | null
+          title: string
+          total_questions: number
+          updated_at: string
+          user_id: string
+          year: number | null
+        }
+        Insert: {
+          banca?: string | null
+          created_at?: string
+          exam_id?: string | null
+          id?: string
+          source?: string
+          summary?: string | null
+          title: string
+          total_questions?: number
+          updated_at?: string
+          user_id: string
+          year?: number | null
+        }
+        Update: {
+          banca?: string | null
+          created_at?: string
+          exam_id?: string | null
+          id?: string
+          source?: string
+          summary?: string | null
+          title?: string
+          total_questions?: number
+          updated_at?: string
+          user_id?: string
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_analyses_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_topics: {
+        Row: {
+          analysis_id: string
+          area: string
+          created_at: string
+          id: string
+          incidence_pct: number
+          question_count: number
+          subject: string
+          topic: string | null
+          user_id: string
+        }
+        Insert: {
+          analysis_id: string
+          area: string
+          created_at?: string
+          id?: string
+          incidence_pct?: number
+          question_count?: number
+          subject: string
+          topic?: string | null
+          user_id: string
+        }
+        Update: {
+          analysis_id?: string
+          area?: string
+          created_at?: string
+          id?: string
+          incidence_pct?: number
+          question_count?: number
+          subject?: string
+          topic?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_topics_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "exam_analyses"
             referencedColumns: ["id"]
           },
         ]
