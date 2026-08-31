@@ -219,11 +219,30 @@ function Dashboard() {
                   {subject.next_review_at &&
                     ` · revisão ${formatDate(subject.next_review_at)}`}
                 </p>
-                {s.recentErrors >= 3 && (
-                  <p className="mt-1 text-xs font-medium text-rose">
-                    🚨 Revisar/criar baralho de flashcards sobre este assunto
-                  </p>
-                )}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {subject.next_review_at &&
+                    new Date(subject.next_review_at) < today && (
+                      <span className="rounded-full bg-rose/10 px-2 py-0.5 text-[10px] font-medium text-rose">
+                        revisão atrasada{" "}
+                        {Math.max(1, daysBetween(today, subject.next_review_at))}d
+                      </span>
+                    )}
+                  {subject.mastery < 60 && (
+                    <span className="rounded-full bg-amber/10 px-2 py-0.5 text-[10px] font-medium text-amber">
+                      domínio baixo
+                    </span>
+                  )}
+                  {s.recentErrors >= 3 && (
+                    <span className="rounded-full bg-rose/10 px-2 py-0.5 text-[10px] font-medium text-rose">
+                      {s.recentErrors} erros recentes
+                    </span>
+                  )}
+                  {s.accuracy !== null && s.total >= 5 && s.accuracy < 70 && (
+                    <span className="rounded-full bg-violet/10 px-2 py-0.5 text-[10px] font-medium text-violet">
+                      acertos abaixo de 70%
+                    </span>
+                  )}
+                </div>
               </Link>
             ))}
           </div>
