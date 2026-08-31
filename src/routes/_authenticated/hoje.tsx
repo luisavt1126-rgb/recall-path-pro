@@ -303,7 +303,7 @@ function Dashboard() {
         </Panel>
 
         <Panel
-          title="Baralhos Anki"
+          title="Baralhos recomendados"
           action={
             <Link to="/baralhos" className="text-xs font-medium text-brand">
               Gerenciar
@@ -311,32 +311,41 @@ function Dashboard() {
           }
         >
           <div className="space-y-2.5 text-sm">
-            {decksToday.length === 0 && <Empty>Nenhum baralho para hoje.</Empty>}
-            {decksToday.map((deck) => (
-              <div key={deck.id} className="rounded-xl border border-border p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate font-medium">{deck.name}</p>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      deck.status === "reforco"
-                        ? "bg-rose/10 text-rose"
-                        : deck.status === "revisao"
-                          ? "bg-amber/10 text-amber"
-                          : "bg-brand/10 text-brand"
-                    }`}
-                  >
-                    {deck.status === "reforco"
-                      ? "Reforço por erros"
-                      : deck.status === "revisao"
-                        ? "Revisão"
-                        : "Novo"}
-                  </span>
+            {recommendations.length === 0 && (
+              <Empty>Registre questões e assuntos para receber recomendações.</Empty>
+            )}
+            {recommendations.map((rec) => {
+              const meta = DECK_KIND_META[rec.kind];
+              return (
+                <div key={rec.key} className="rounded-xl border border-border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="truncate font-medium">{rec.title}</p>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${meta.bg} ${meta.text}`}
+                    >
+                      {meta.label}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {rec.subject.name} · {rec.reason}
+                  </p>
+                  {rec.deck?.next_review_at && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      próxima: {formatDate(rec.deck.next_review_at)}
+                    </p>
+                  )}
+                  {rec.kind === "novo" && (
+                    <button
+                      className="mt-2 text-xs font-medium text-brand disabled:opacity-50"
+                      disabled={createDeck.isPending}
+                      onClick={() => createDeck.mutate(rec)}
+                    >
+                      + Criar baralho para este assunto
+                    </button>
+                  )}
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  próxima: {formatDate(deck.next_review_at)}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Panel>
       </div>
