@@ -12,6 +12,7 @@ export type QuestionLog = Tables["question_logs"]["Row"];
 export type AnkiDeck = Tables["anki_decks"]["Row"];
 export type DeckSession = Tables["deck_sessions"]["Row"];
 export type AgendaEvent = Tables["events"]["Row"];
+export type Exam = Tables["exams"]["Row"];
 
 async function currentUserId() {
   const { data } = await supabase.auth.getUser();
@@ -120,6 +121,27 @@ export function useEvents() {
     },
   });
 }
+
+export function useExams() {
+  return useQuery({
+    queryKey: ["exams"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("exams")
+        .select("*")
+        .order("exam_date");
+      if (error) throw error;
+      return data as Exam[];
+    },
+  });
+}
+
+export const EXAM_STATUS = [
+  { value: "planejada", label: "Planejada" },
+  { value: "inscrito", label: "Inscrito" },
+  { value: "realizada", label: "Realizada" },
+  { value: "cancelada", label: "Cancelada" },
+] as const;
 
 export function useReviews(subjectId?: string) {
   return useQuery({

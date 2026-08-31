@@ -1,4 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { requireUserId } from "@/lib/actions";
+import {
+  DECK_KIND_META,
+  recommendDecks,
+  type DeckRecommendation,
+} from "@/lib/recommendations";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import {
   useDecks,
@@ -22,6 +31,7 @@ import {
   formatTime,
   isSameDay,
   startOfWeek,
+  daysBetween,
 } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/hoje")({
@@ -40,6 +50,7 @@ export const Route = createFileRoute("/_authenticated/hoje")({
 });
 
 function Dashboard() {
+  const qc = useQueryClient();
   const { data: profile } = useProfile();
   const { data: subjects = [] } = useSubjects();
   const { data: disciplines = [] } = useDisciplines();
@@ -95,9 +106,26 @@ function Dashboard() {
     .filter((e) => isSameDay(new Date(e.starts_at), today))
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 
-  const decksToday = decks
-    .filter((d) => !d.next_review_at || new Date(d.next_review_at) <= addDays(today, 1))
-    .slice(0, 4);
+  const recommendations = recommendDecks(ranked, decks, today, 4);
+
+  const createDeck = useMutation({
+    mutationFn: async (rec: DeckRecommendation) => {
+      const userId = await requireUserId();
+      const { error } = await supabase.from("anki_decks").insert({
+        user_id: userId,
+        name: rec.title,
+        subject_id: rec.subject.id,
+        status: "novo",
+        next_review_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["anki_decks"] });
+      toast.success("Baralho criado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const weeks = Array.from({ length: 8 }, (_, i) => {
     const start = addDays(weekStart, -7 * (7 - i));
@@ -182,7 +210,14 @@ function Dashboard() {
           </div>
         </Panel>
 
-        <Panel title="O que fazer agora">
+        <Panel
+          title="O que estudar hoje"
+          action={
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              prioridade inteligente
+            </span>
+          }
+        >
           <div className="flex flex-col gap-2.5 text-sm">
             {ranked.length === 0 && (
               <Empty>
@@ -212,11 +247,30 @@ function Dashboard() {
                   {subject.next_review_at &&
                     ` · revisão ${formatDate(subject.next_review_at)}`}
                 </p>
-                {s.recentErrors >= 3 && (
-                  <p className="mt-1 text-xs font-medium text-rose">
-                    🚨 Revisar/criar baralho de flashcards sobre este assunto
-                  </p>
-                )}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {subject.next_review_at &&
+                    new Date(subject.next_review_at) < today && (
+                      <span className="rounded-full bg-rose/10 px-2 py-0.5 text-[10px] font-medium text-rose">
+                        revisão atrasada{" "}
+                        {Math.max(1, daysBetween(today, subject.next_review_at))}d
+                      </span>
+                    )}
+                  {subject.mastery < 60 && (
+                    <span className="rounded-full bg-amber/10 px-2 py-0.5 text-[10px] font-medium text-amber">
+                      domínio baixo
+                    </span>
+                  )}
+                  {s.recentErrors >= 3 && (
+                    <span className="rounded-full bg-rose/10 px-2 py-0.5 text-[10px] font-medium text-rose">
+                      {s.recentErrors} erros recentes
+                    </span>
+                  )}
+                  {s.accuracy !== null && s.total >= 5 && s.accuracy < 70 && (
+                    <span className="rounded-full bg-violet/10 px-2 py-0.5 text-[10px] font-medium text-violet">
+                      acertos abaixo de 70%
+                    </span>
+                  )}
+                </div>
               </Link>
             ))}
           </div>
@@ -277,7 +331,7 @@ function Dashboard() {
         </Panel>
 
         <Panel
-          title="Baralhos Anki"
+          title="Baralhos recomendados"
           action={
             <Link to="/baralhos" className="text-xs font-medium text-brand">
               Gerenciar
@@ -285,32 +339,41 @@ function Dashboard() {
           }
         >
           <div className="space-y-2.5 text-sm">
-            {decksToday.length === 0 && <Empty>Nenhum baralho para hoje.</Empty>}
-            {decksToday.map((deck) => (
-              <div key={deck.id} className="rounded-xl border border-border p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate font-medium">{deck.name}</p>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      deck.status === "reforco"
-                        ? "bg-rose/10 text-rose"
-                        : deck.status === "revisao"
-                          ? "bg-amber/10 text-amber"
-                          : "bg-brand/10 text-brand"
-                    }`}
-                  >
-                    {deck.status === "reforco"
-                      ? "Reforço por erros"
-                      : deck.status === "revisao"
-                        ? "Revisão"
-                        : "Novo"}
-                  </span>
+            {recommendations.length === 0 && (
+              <Empty>Registre questões e assuntos para receber recomendações.</Empty>
+            )}
+            {recommendations.map((rec) => {
+              const meta = DECK_KIND_META[rec.kind];
+              return (
+                <div key={rec.key} className="rounded-xl border border-border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="truncate font-medium">{rec.title}</p>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${meta.bg} ${meta.text}`}
+                    >
+                      {meta.label}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {rec.subject.name} · {rec.reason}
+                  </p>
+                  {rec.deck?.next_review_at && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      próxima: {formatDate(rec.deck.next_review_at)}
+                    </p>
+                  )}
+                  {rec.kind === "novo" && (
+                    <button
+                      className="mt-2 text-xs font-medium text-brand disabled:opacity-50"
+                      disabled={createDeck.isPending}
+                      onClick={() => createDeck.mutate(rec)}
+                    >
+                      + Criar baralho para este assunto
+                    </button>
+                  )}
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  próxima: {formatDate(deck.next_review_at)}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Panel>
       </div>
