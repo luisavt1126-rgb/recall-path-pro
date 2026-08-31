@@ -10,6 +10,7 @@ import {
   Moon,
   Sun,
   Timer,
+  GraduationCap,
   LogOut,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +25,7 @@ const NAV = [
   { to: "/baralhos", label: "Baralhos Anki", icon: Layers },
   { to: "/questoes", label: "Questões", icon: ListChecks },
   { to: "/calendario", label: "Calendário", icon: CalendarDays },
+  { to: "/provas", label: "Provas", icon: GraduationCap },
   { to: "/temporizador", label: "Temporizador", icon: Timer },
   { to: "/graficos", label: "Gráficos", icon: BarChart3 },
 ] as const;
@@ -32,8 +34,8 @@ const MOBILE_NAV = [
   { to: "/hoje", label: "Hoje", icon: LayoutGrid },
   { to: "/assuntos", label: "Assuntos", icon: BookOpen },
   { to: "/calendario", label: "Agenda", icon: CalendarDays },
+  { to: "/provas", label: "Provas", icon: GraduationCap },
   { to: "/temporizador", label: "Timer", icon: Timer },
-  { to: "/graficos", label: "Gráficos", icon: BarChart3 },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
