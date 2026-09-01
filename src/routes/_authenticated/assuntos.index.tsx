@@ -11,8 +11,9 @@ import {
   useQuestionLogs,
   useSubjects,
 } from "@/lib/data";
-import { priorityLevel, priorityScore } from "@/lib/priority";
+import { questionPriority } from "@/lib/priority";
 import { Panel, PriorityTag, Field, inputClass, buttonClass, Empty } from "@/components/bits";
+import { PrepIcons } from "@/components/SubjectPrep";
 import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/assuntos/")({
