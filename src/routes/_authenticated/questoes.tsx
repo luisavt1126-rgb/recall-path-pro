@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { requireUserId } from "@/lib/actions";
+import { requireUserId, startSubjectCycle } from "@/lib/actions";
 import { useDisciplines, useQuestionLogs, useSubjects } from "@/lib/data";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass } from "@/components/bits";
 import { formatDate } from "@/lib/format";
