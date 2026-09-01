@@ -49,6 +49,8 @@ function QuestionsPage() {
         correct: Number(correct),
       });
       if (error) throw error;
+      if (subjectId) await startSubjectCycle(subjectId);
+
     },
     onSuccess: () => {
       qc.invalidateQueries();
