@@ -8,6 +8,7 @@ import { EVENT_CATEGORIES, categoryMeta, useEvents, useSubjects } from "@/lib/da
 import { Panel, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { addDays, formatTime, isSameDay, longDate, startOfWeek } from "@/lib/format";
 import { MEDCURSO_AREAS, PLAN_TAG, generateMedcursoPlan } from "@/lib/medcurso";
+import { URGENCY_META, dayUrgency } from "@/lib/priority";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
