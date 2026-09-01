@@ -8,6 +8,7 @@ import { EVENT_CATEGORIES, categoryMeta, useEvents, useSubjects } from "@/lib/da
 import { Panel, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { addDays, formatTime, isSameDay, longDate, startOfWeek } from "@/lib/format";
 import { MEDCURSO_AREAS, PLAN_TAG, generateMedcursoPlan } from "@/lib/medcurso";
+import { URGENCY_META, dayUrgency } from "@/lib/priority";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -31,6 +32,8 @@ function CalendarPage() {
   const { data: events = [] } = useEvents();
   const { data: subjects = [] } = useSubjects();
   const [weekOffset, setWeekOffset] = useState(0);
+  const [viewMode, setViewMode] = useState<"semana" | "mes">("semana");
+  const [monthOffset, setMonthOffset] = useState(0);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("estudar");
@@ -47,6 +50,15 @@ function CalendarPage() {
 
   const weekStart = addDays(startOfWeek(new Date()), weekOffset * 7);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  const now = new Date();
+  const monthCursor = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const monthGridStart = startOfWeek(monthCursor);
+  const monthDays = Array.from({ length: 42 }, (_, i) => addDays(monthGridStart, i));
+  const monthLabel = monthCursor.toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
 
   const createEvent = useMutation({
     mutationFn: async () => {
@@ -321,30 +333,143 @@ function CalendarPage() {
       </Panel>
 
       <Panel
-        title={`Semana de ${weekStart.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`}
+        title={
+          viewMode === "semana"
+            ? `Semana de ${weekStart.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`
+            : monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+        }
         action={
-          <div className="flex gap-2 text-xs">
+          <div className="flex items-center gap-2 text-xs">
+            <div className="flex overflow-hidden rounded-lg border border-border">
+              {(["semana", "mes"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  className={`px-2.5 py-1 font-medium ${
+                    viewMode === mode
+                      ? "bg-brand/10 text-brand"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setViewMode(mode)}
+                >
+                  {mode === "semana" ? "Semana" : "Mês"}
+                </button>
+              ))}
+            </div>
             <button
               className="rounded-lg border border-border px-2 py-1"
-              onClick={() => setWeekOffset((w) => w - 1)}
+              onClick={() =>
+                viewMode === "semana"
+                  ? setWeekOffset((w) => w - 1)
+                  : setMonthOffset((m) => m - 1)
+              }
             >
               ←
             </button>
             <button
               className="rounded-lg border border-border px-2 py-1"
-              onClick={() => setWeekOffset(0)}
+              onClick={() => (viewMode === "semana" ? setWeekOffset(0) : setMonthOffset(0))}
             >
               Hoje
             </button>
             <button
               className="rounded-lg border border-border px-2 py-1"
-              onClick={() => setWeekOffset((w) => w + 1)}
+              onClick={() =>
+                viewMode === "semana"
+                  ? setWeekOffset((w) => w + 1)
+                  : setMonthOffset((m) => m + 1)
+              }
             >
               →
             </button>
           </div>
         }
       >
+        {viewMode === "mes" ? (
+          <>
+            <div className="mb-2 grid grid-cols-7 gap-1.5">
+              {WEEKDAYS.map((d) => (
+                <p
+                  key={d}
+                  className="text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  {d}
+                </p>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1.5">
+              {monthDays.map((day) => {
+                const inMonth = day.getMonth() === monthCursor.getMonth();
+                const isToday = isSameDay(day, new Date());
+                const dayEvents = events
+                  .filter((e) => isSameDay(new Date(e.starts_at), day))
+                  .sort((a, b) => {
+                    const rank = { atrasado: 0, proximo: 1, em_dia: 2 } as const;
+                    const ra = rank[dayUrgency(a.starts_at, a.status === "concluido")];
+                    const rb = rank[dayUrgency(b.starts_at, b.status === "concluido")];
+                    return ra - rb || a.starts_at.localeCompare(b.starts_at);
+                  });
+                const visible = dayEvents.slice(0, 3);
+                const hidden = dayEvents.length - visible.length;
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={`min-h-20 rounded-lg border p-1.5 ${
+                      isToday
+                        ? "border-brand bg-brand/5"
+                        : inMonth
+                          ? "border-border"
+                          : "border-border/50 bg-muted/30"
+                    }`}
+                  >
+                    <p
+                      className={`text-right text-[10px] font-semibold ${
+                        isToday
+                          ? "text-brand"
+                          : inMonth
+                            ? "text-foreground"
+                            : "text-muted-foreground/60"
+                      }`}
+                    >
+                      {day.getDate()}
+                    </p>
+                    <div className="mt-0.5 space-y-0.5">
+                      {visible.map((event) => {
+                        const done = event.status === "concluido";
+                        const urgency = dayUrgency(event.starts_at, done);
+                        const u = URGENCY_META[urgency];
+                        return (
+                          <div
+                            key={event.id}
+                            title={`${formatTime(event.starts_at)} · ${event.title} — ${u.label}`}
+                            className={`flex items-center gap-1 truncate rounded border px-1 py-0.5 text-[9px] font-medium ${u.chip}`}
+                          >
+                            <span className={`h-1 w-1 shrink-0 rounded-full ${u.dot}`} />
+                            <span className={`truncate ${done ? "line-through opacity-70" : ""}`}>
+                              {formatTime(event.starts_at)} {event.title}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {hidden > 0 && (
+                        <p className="px-1 text-[9px] font-medium text-muted-foreground">
+                          +{hidden} mais
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+              {(Object.keys(URGENCY_META) as Array<keyof typeof URGENCY_META>).map((k) => (
+                <span key={k} className="flex items-center gap-1">
+                  <span className={`h-1.5 w-1.5 rounded-full ${URGENCY_META[k].dot}`} />
+                  {URGENCY_META[k].emoji} {URGENCY_META[k].label}
+                </span>
+              ))}
+            </div>
+          </>
+        ) : (
         <div className="grid gap-3 lg:grid-cols-7">
           {days.map((day) => {
             const dayEvents = events
@@ -410,6 +535,7 @@ function CalendarPage() {
             );
           })}
         </div>
+        )}
       </Panel>
 
       <Panel title={longDate(new Date())}>

@@ -84,6 +84,57 @@ export function priorityLevel(score: number): PriorityLevel {
 const DAY_MS = DAY;
 
 // ---------------------------------------------------------------------------
+// Urgência por dia (calendário mensal): classificação simples de cor, sem score.
+// ---------------------------------------------------------------------------
+
+export type DayUrgency = "atrasado" | "proximo" | "em_dia";
+
+export const URGENCY_META: Record<
+  DayUrgency,
+  { label: string; emoji: string; chip: string; dot: string }
+> = {
+  atrasado: {
+    label: "Atrasado",
+    emoji: "🔴",
+    chip: "border-rose/40 bg-rose/10 text-rose",
+    dot: "bg-rose",
+  },
+  proximo: {
+    label: "Perto do vencimento",
+    emoji: "🟡",
+    chip: "border-amber/40 bg-amber/10 text-amber",
+    dot: "bg-amber",
+  },
+  em_dia: {
+    label: "Em dia",
+    emoji: "🟢",
+    chip: "border-sage/40 bg-sage/10 text-sage",
+    dot: "bg-sage",
+  },
+};
+
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x.getTime();
+}
+
+/**
+ * Classifica um item de agenda pela urgência em granularidade de dia.
+ * done=true (concluído) é sempre "em_dia"; atrasado = data passou e pendente;
+ * proximo = hoje ou nos próximos `soonDays` dias; caso contrário, em_dia.
+ */
+export function dayUrgency(dateIso: string, done: boolean, soonDays = 2): DayUrgency {
+  if (done) return "em_dia";
+  const diffDays = Math.floor(
+    (startOfDay(new Date(dateIso)) - startOfDay(new Date())) / DAY_MS,
+  );
+  if (diffDays < 0) return "atrasado";
+  if (diffDays <= soonDays) return "proximo";
+  return "em_dia";
+}
+
+// ---------------------------------------------------------------------------
 // Ranking 1 — baralhos do Anki (revisão atrasada, tempo desde a última revisão
 // e fragilidade do intervalo FSRS/SRS). Não mistura desempenho em questões.
 // ---------------------------------------------------------------------------
