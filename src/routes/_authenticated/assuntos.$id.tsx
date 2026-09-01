@@ -89,6 +89,14 @@ function SubjectDetail() {
         />
       </div>
 
+      <Panel title="Preparo do assunto">
+        <p className="mb-3 text-sm text-muted-foreground">
+          Marque o que já está pronto. A primeira marcação registra automaticamente o
+          primeiro estudo deste assunto.
+        </p>
+        <PrepChecklist subject={subject} />
+      </Panel>
+
       <Panel title="Registrar revisão">
         <p className="text-sm text-muted-foreground">
           Como foi a recuperação deste conteúdo? O intervalo é recalculado para manter cerca
