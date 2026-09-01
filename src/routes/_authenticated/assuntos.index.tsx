@@ -41,12 +41,12 @@ const CORE_DISCIPLINES = [
 ] as const;
 
 /** Garante que as 5 grandes áreas existam para o usuário, sem duplicar por nome. */
-function useSeedCoreDisciplines(disciplines: { name: string }[]) {
+function useSeedCoreDisciplines(disciplines: { name: string }[], ready: boolean) {
   const qc = useQueryClient();
   const ran = useRef(false);
 
   useEffect(() => {
-    if (ran.current) return;
+    if (!ready || ran.current) return;
     const existing = new Set(disciplines.map((d) => d.name.trim().toLowerCase()));
     const missing = CORE_DISCIPLINES.filter((n) => !existing.has(n.toLowerCase()));
     if (missing.length === 0) return;
@@ -64,12 +64,12 @@ function useSeedCoreDisciplines(disciplines: { name: string }[]) {
         toast.error((e as Error).message);
       }
     })();
-  }, [disciplines, qc]);
+  }, [disciplines, ready, qc]);
 }
 
 function SubjectsPage() {
   const qc = useQueryClient();
-  const { data: disciplines = [] } = useDisciplines();
+  const { data: disciplines = [], isSuccess: disciplinesLoaded } = useDisciplines();
   const { data: subjects = [] } = useSubjects();
   const { data: logs = [] } = useQuestionLogs();
   const stats = questionStatsBySubject(logs);
@@ -79,7 +79,7 @@ function SubjectsPage() {
   const [parentId, setParentId] = useState("");
   const [incidence, setIncidence] = useState(3);
 
-  useSeedCoreDisciplines(disciplines);
+  useSeedCoreDisciplines(disciplines, disciplinesLoaded);
 
   // Somente as 5 grandes áreas ficam disponíveis para novos assuntos.
   const coreDisciplines = CORE_DISCIPLINES.map((name) =>
