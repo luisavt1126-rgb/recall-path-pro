@@ -467,6 +467,7 @@ export type Database = {
       subjects: {
         Row: {
           created_at: string
+          deck_ready_at: string | null
           difficulty: number
           discipline_id: string
           ease: number
@@ -483,10 +484,13 @@ export type Database = {
           reps: number
           review_count: number
           stability: number
+          summary_ready_at: string | null
           user_id: string
+          video_watched_at: string | null
         }
         Insert: {
           created_at?: string
+          deck_ready_at?: string | null
           difficulty?: number
           discipline_id: string
           ease?: number
@@ -503,10 +507,13 @@ export type Database = {
           reps?: number
           review_count?: number
           stability?: number
+          summary_ready_at?: string | null
           user_id: string
+          video_watched_at?: string | null
         }
         Update: {
           created_at?: string
+          deck_ready_at?: string | null
           difficulty?: number
           discipline_id?: string
           ease?: number
@@ -523,7 +530,9 @@ export type Database = {
           reps?: number
           review_count?: number
           stability?: number
+          summary_ready_at?: string | null
           user_id?: string
+          video_watched_at?: string | null
         }
         Relationships: [
           {
