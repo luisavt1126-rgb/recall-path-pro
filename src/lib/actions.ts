@@ -131,7 +131,7 @@ export function useSetSubjectPrep() {
       done: boolean;
     }) => {
       const now = new Date().toISOString();
-      const patch: Record<string, string | null> = { [field]: done ? now : null };
+      const patch: Partial<Subject> = { [field]: done ? now : null };
       if (done && !subject.first_studied_at) patch.first_studied_at = now;
       const { error } = await supabase.from("subjects").update(patch).eq("id", subject.id);
       if (error) throw error;
