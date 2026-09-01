@@ -20,7 +20,7 @@ import {
   EMPTY_STATS,
   categoryMeta,
 } from "@/lib/data";
-import { priorityLevel, priorityScore } from "@/lib/priority";
+import { questionPriority } from "@/lib/priority";
 import { Panel, Stat, Empty } from "@/components/bits";
 import { PriorityRankings } from "@/components/PriorityRankings";
 
@@ -79,15 +79,13 @@ function Dashboard() {
   const ranked = subjects
     .map((subject) => {
       const s = stats.get(subject.id) ?? EMPTY_STATS;
-      const score = priorityScore({
-        next_review_at: subject.next_review_at,
-        last_studied_at: subject.last_studied_at,
-        mastery: subject.mastery,
-        exam_incidence: subject.exam_incidence,
+      const { score, level } = questionPriority({
         accuracy: s.accuracy,
+        total: s.total,
         recentErrors: s.recentErrors,
+        exam_incidence: subject.exam_incidence,
       });
-      return { subject, score, level: priorityLevel(score), stats: s };
+      return { subject, score, level, stats: s };
     })
     .sort((a, b) => b.score - a.score);
 
