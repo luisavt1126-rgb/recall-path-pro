@@ -535,6 +535,7 @@ function CalendarPage() {
             );
           })}
         </div>
+        )}
       </Panel>
 
       <Panel title={longDate(new Date())}>
