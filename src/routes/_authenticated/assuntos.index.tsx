@@ -84,25 +84,7 @@ function SubjectsPage() {
 
   return (
     <>
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Panel title="Nova disciplina">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (disciplineName.trim()) addDiscipline.mutate();
-            }}
-            className="flex gap-2"
-          >
-            <input
-              className={inputClass}
-              placeholder="Ex.: Cardiologia"
-              value={disciplineName}
-              onChange={(e) => setDisciplineName(e.target.value)}
-            />
-            <button className={buttonClass}>Criar</button>
-          </form>
-        </Panel>
-
+      <div className="grid gap-5">
         <Panel title="Novo assunto / subassunto">
           <form
             onSubmit={(e) => {
