@@ -223,7 +223,10 @@ function SubjectsPage() {
       >
         <div className="flex items-start justify-between gap-2">
           <p className={`font-medium ${nested ? "text-sm" : ""}`}>{subject.name}</p>
-          <PriorityTag level={priorityLevel(scoreOf(subject.id))} />
+          <div className="flex shrink-0 items-center gap-2">
+            <PrepIcons subject={subject} />
+            <PriorityTag level={levelOf(subject.id)} />
+          </div>
         </div>
         <div className="mt-1.5 flex items-center gap-3">
           <div className="h-1.5 w-24 overflow-hidden rounded-full bg-secondary">
