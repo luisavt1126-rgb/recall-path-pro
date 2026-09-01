@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,34 +31,60 @@ export const Route = createFileRoute("/_authenticated/assuntos/")({
   component: SubjectsPage,
 });
 
+/** As 5 grandes áreas fixas da medicina (não editáveis pela interface). */
+const CORE_DISCIPLINES = [
+  "Clínica Médica",
+  "Cirurgia",
+  "Ginecologia e Obstetrícia",
+  "Pediatria",
+  "Medicina Preventiva",
+] as const;
+
+/** Garante que as 5 grandes áreas existam para o usuário, sem duplicar por nome. */
+function useSeedCoreDisciplines(disciplines: { name: string }[], ready: boolean) {
+  const qc = useQueryClient();
+  const ran = useRef(false);
+
+  useEffect(() => {
+    if (!ready || ran.current) return;
+    const existing = new Set(disciplines.map((d) => d.name.trim().toLowerCase()));
+    const missing = CORE_DISCIPLINES.filter((n) => !existing.has(n.toLowerCase()));
+    if (missing.length === 0) return;
+    ran.current = true;
+    (async () => {
+      try {
+        const userId = await requireUserId();
+        const { error } = await supabase
+          .from("disciplines")
+          .insert(missing.map((name) => ({ user_id: userId, name })));
+        if (error) throw error;
+        qc.invalidateQueries({ queryKey: ["disciplines"] });
+      } catch (e) {
+        ran.current = false;
+        toast.error((e as Error).message);
+      }
+    })();
+  }, [disciplines, ready, qc]);
+}
+
 function SubjectsPage() {
   const qc = useQueryClient();
-  const { data: disciplines = [] } = useDisciplines();
+  const { data: disciplines = [], isSuccess: disciplinesLoaded } = useDisciplines();
   const { data: subjects = [] } = useSubjects();
   const { data: logs = [] } = useQuestionLogs();
   const stats = questionStatsBySubject(logs);
 
-  const [disciplineName, setDisciplineName] = useState("");
   const [subjectName, setSubjectName] = useState("");
   const [disciplineId, setDisciplineId] = useState("");
   const [parentId, setParentId] = useState("");
   const [incidence, setIncidence] = useState(3);
 
-  const addDiscipline = useMutation({
-    mutationFn: async () => {
-      const userId = await requireUserId();
-      const { error } = await supabase
-        .from("disciplines")
-        .insert({ user_id: userId, name: disciplineName.trim() });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      setDisciplineName("");
-      qc.invalidateQueries();
-      toast.success("Disciplina criada");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  useSeedCoreDisciplines(disciplines, disciplinesLoaded);
+
+  // Somente as 5 grandes áreas ficam disponíveis para novos assuntos.
+  const coreDisciplines = CORE_DISCIPLINES.map((name) =>
+    disciplines.find((d) => d.name.trim().toLowerCase() === name.toLowerCase()),
+  ).filter((d): d is NonNullable<typeof d> => Boolean(d));
 
   const addSubject = useMutation({
     mutationFn: async () => {
@@ -94,25 +120,7 @@ function SubjectsPage() {
 
   return (
     <>
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Panel title="Nova disciplina">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (disciplineName.trim()) addDiscipline.mutate();
-            }}
-            className="flex gap-2"
-          >
-            <input
-              className={inputClass}
-              placeholder="Ex.: Cardiologia"
-              value={disciplineName}
-              onChange={(e) => setDisciplineName(e.target.value)}
-            />
-            <button className={buttonClass}>Criar</button>
-          </form>
-        </Panel>
-
+      <div className="grid gap-5">
         <Panel title="Novo assunto / subassunto">
           <form
             onSubmit={(e) => {
@@ -121,7 +129,7 @@ function SubjectsPage() {
             }}
             className="grid gap-3 sm:grid-cols-2"
           >
-            <Field label="Disciplina">
+            <Field label="Grande área">
               <select
                 className={inputClass}
                 value={disciplineId}
@@ -129,7 +137,7 @@ function SubjectsPage() {
                 required
               >
                 <option value="">Selecione</option>
-                {disciplines.map((d) => (
+                {coreDisciplines.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
                   </option>
