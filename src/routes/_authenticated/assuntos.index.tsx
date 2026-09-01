@@ -31,6 +31,42 @@ export const Route = createFileRoute("/_authenticated/assuntos/")({
   component: SubjectsPage,
 });
 
+/** As 5 grandes áreas fixas da medicina (não editáveis pela interface). */
+const CORE_DISCIPLINES = [
+  "Clínica Médica",
+  "Cirurgia",
+  "Ginecologia e Obstetrícia",
+  "Pediatria",
+  "Medicina Preventiva",
+] as const;
+
+/** Garante que as 5 grandes áreas existam para o usuário, sem duplicar por nome. */
+function useSeedCoreDisciplines(disciplines: { name: string }[]) {
+  const qc = useQueryClient();
+  const ran = useRef(false);
+
+  useEffect(() => {
+    if (ran.current) return;
+    const existing = new Set(disciplines.map((d) => d.name.trim().toLowerCase()));
+    const missing = CORE_DISCIPLINES.filter((n) => !existing.has(n.toLowerCase()));
+    if (missing.length === 0) return;
+    ran.current = true;
+    (async () => {
+      try {
+        const userId = await requireUserId();
+        const { error } = await supabase
+          .from("disciplines")
+          .insert(missing.map((name) => ({ user_id: userId, name })));
+        if (error) throw error;
+        qc.invalidateQueries({ queryKey: ["disciplines"] });
+      } catch (e) {
+        ran.current = false;
+        toast.error((e as Error).message);
+      }
+    })();
+  }, [disciplines, qc]);
+}
+
 function SubjectsPage() {
   const qc = useQueryClient();
   const { data: disciplines = [] } = useDisciplines();
