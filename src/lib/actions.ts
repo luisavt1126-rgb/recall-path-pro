@@ -128,13 +128,13 @@ export async function startSubjectCycle(subjectId: string, at?: string) {
     .maybeSingle();
   if (!subject) return;
 
-  const patch: Record<string, unknown> = {};
-  if (!subject.first_studied_at) patch.first_studied_at = now;
-  if (!subject.next_review_at) {
+  const patch: Partial<Subject> = {};
+  if (!subject["first_studied_at"]) patch.first_studied_at = now;
+  if (!subject["next_review_at"]) {
     const next = new Date(now);
     next.setDate(next.getDate() + 1);
     patch.next_review_at = next.toISOString();
-    if (!Number(subject.interval_days)) patch.interval_days = 1;
+    if (!Number(subject["interval_days"])) patch.interval_days = 1;
   }
   if (Object.keys(patch).length === 0) return;
   await supabase.from("subjects").update(patch).eq("id", subjectId);
