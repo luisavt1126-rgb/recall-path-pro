@@ -19,6 +19,6 @@ export async function extractPdfText(file: File, maxChars = 90_000) {
     text += `\n\n[página ${i}]\n${pageText}`;
     if (text.length > maxChars) break;
   }
-  await doc.destroy();
+  await (doc as unknown as { destroy: () => Promise<void> }).destroy();
   return text.slice(0, maxChars).trim();
 }
