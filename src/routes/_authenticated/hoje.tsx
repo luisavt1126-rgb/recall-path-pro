@@ -22,7 +22,9 @@ import {
   categoryMeta,
 } from "@/lib/data";
 import { priorityLevel, priorityScore } from "@/lib/priority";
-import { Panel, PriorityTag, Stat, Empty } from "@/components/bits";
+import { Panel, Stat, Empty } from "@/components/bits";
+import { PriorityRankings } from "@/components/PriorityRankings";
+
 import {
   addDays,
   decimalHours,
@@ -173,11 +175,11 @@ function Dashboard() {
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-5">
         <Panel
           title="Agenda de hoje"
-          className="lg:col-span-2"
           action={
+
             <Link to="/calendario" className="text-xs font-medium text-brand">
               Ver calendário
             </Link>
