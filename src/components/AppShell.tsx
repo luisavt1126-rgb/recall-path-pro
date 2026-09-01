@@ -11,6 +11,7 @@ import {
   Sun,
   Timer,
   GraduationCap,
+  Settings,
   LogOut,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +29,7 @@ const NAV = [
   { to: "/provas", label: "Provas", icon: GraduationCap },
   { to: "/temporizador", label: "Temporizador", icon: Timer },
   { to: "/graficos", label: "Gráficos", icon: BarChart3 },
+  { to: "/configuracoes", label: "Configurações", icon: Settings },
 ] as const;
 
 const MOBILE_NAV = [
