@@ -5,8 +5,11 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { requireUserId } from "@/lib/actions";
 import { EVENT_CATEGORIES, categoryMeta, useEvents, useSubjects } from "@/lib/data";
-import { Panel, Empty, Field, inputClass, buttonClass } from "@/components/bits";
+import { Panel, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { addDays, formatTime, isSameDay, longDate, startOfWeek } from "@/lib/format";
+import { MEDCURSO_AREAS, PLAN_TAG, generateMedcursoPlan } from "@/lib/medcurso";
+
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
@@ -35,6 +38,12 @@ function CalendarPage() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState("19:00");
   const [duration, setDuration] = useState("60");
+
+  const [planStart, setPlanStart] = useState(new Date().toISOString().slice(0, 10));
+  const [planDays, setPlanDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [planLessonTime, setPlanLessonTime] = useState("19:00");
+  const [planReviewTime, setPlanReviewTime] = useState("07:30");
+  const [planAreas, setPlanAreas] = useState<string[]>([...MEDCURSO_AREAS]);
 
   const weekStart = addDays(startOfWeek(new Date()), weekOffset * 7);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
