@@ -115,8 +115,34 @@ export function useLogStudySession() {
 type PrepField = "video_watched_at" | "summary_ready_at" | "deck_ready_at";
 
 /**
+ * Inicia o ciclo de revisão espaçada de um assunto caso ele ainda esteja zerado.
+ * Preenche first_studied_at (se vazio) e agenda a primeira revisão em D+1
+ * (se ainda não houver next_review_at). Nunca sobrescreve ciclos em andamento.
+ */
+export async function startSubjectCycle(subjectId: string, at?: string) {
+  const now = at ?? new Date().toISOString();
+  const { data: subject } = await supabase
+    .from("subjects")
+    .select("first_studied_at, next_review_at, interval_days")
+    .eq("id", subjectId)
+    .maybeSingle();
+  if (!subject) return;
+
+  const patch: Partial<Subject> = {};
+  if (!subject["first_studied_at"]) patch.first_studied_at = now;
+  if (!subject["next_review_at"]) {
+    const next = new Date(now);
+    next.setDate(next.getDate() + 1);
+    patch.next_review_at = next.toISOString();
+    if (!Number(subject["interval_days"])) patch.interval_days = 1;
+  }
+  if (Object.keys(patch).length === 0) return;
+  await supabase.from("subjects").update(patch).eq("id", subjectId);
+}
+
+/**
  * Marca/desmarca um item do checklist de preparo do assunto.
- * Ao marcar pela primeira vez, preenche first_studied_at se ainda estiver vazio.
+ * Ao marcar pela primeira vez, inicia o ciclo de revisão do assunto.
  */
 export function useSetSubjectPrep() {
   const qc = useQueryClient();
@@ -132,9 +158,9 @@ export function useSetSubjectPrep() {
     }) => {
       const now = new Date().toISOString();
       const patch: Partial<Subject> = { [field]: done ? now : null };
-      if (done && !subject.first_studied_at) patch.first_studied_at = now;
       const { error } = await supabase.from("subjects").update(patch).eq("id", subject.id);
       if (error) throw error;
+      if (done) await startSubjectCycle(subject.id, now);
       return done;
     },
     onSuccess: (done) => {
@@ -144,3 +170,4 @@ export function useSetSubjectPrep() {
     onError: (error: Error) => toast.error(error.message),
   });
 }
+
