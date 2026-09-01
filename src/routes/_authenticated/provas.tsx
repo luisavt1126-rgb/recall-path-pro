@@ -15,6 +15,7 @@ import {
   ghostButtonClass,
 } from "@/components/bits";
 import { daysBetween, startOfDay } from "@/lib/format";
+import { ExamAnalysisPanel } from "@/components/ExamAnalysis";
 
 export const Route = createFileRoute("/_authenticated/provas")({
   head: () => ({
@@ -61,6 +62,7 @@ const statusMeta: Record<string, string> = {
 };
 
 function ExamsPage() {
+  const [tab, setTab] = useState<"provas" | "analise">("provas");
   const qc = useQueryClient();
   const { data: exams = [] } = useExams();
   const [title, setTitle] = useState("");
@@ -130,8 +132,26 @@ function ExamsPage() {
     (e) => e.registration_deadline && countdown(e.registration_deadline) >= 0,
   );
 
+  const tabClass = (active: boolean) =>
+    `flex-1 rounded-lg px-3 py-2 text-sm font-medium ${
+      active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+    }`;
+
   return (
     <>
+      <div className="flex gap-1 rounded-xl bg-secondary p-1 sm:max-w-md">
+        <button className={tabClass(tab === "provas")} onClick={() => setTab("provas")}>
+          Minhas provas
+        </button>
+        <button className={tabClass(tab === "analise")} onClick={() => setTab("analise")}>
+          Análise de incidência
+        </button>
+      </div>
+
+      {tab === "analise" && <ExamAnalysisPanel />}
+
+      {tab === "provas" && (
+      <>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="Provas cadastradas" value={String(exams.length)} />
         <Stat label="Próximas" value={String(upcoming.length)} hint="ainda por vir" />
@@ -318,6 +338,8 @@ function ExamsPage() {
           ))}
         </div>
       </Panel>
+      </>
+      )}
     </>
   );
 }
