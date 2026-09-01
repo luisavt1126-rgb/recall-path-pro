@@ -93,7 +93,7 @@ function SubjectsPage() {
             }}
             className="grid gap-3 sm:grid-cols-2"
           >
-            <Field label="Disciplina">
+            <Field label="Grande área">
               <select
                 className={inputClass}
                 value={disciplineId}
@@ -101,7 +101,7 @@ function SubjectsPage() {
                 required
               >
                 <option value="">Selecione</option>
-                {disciplines.map((d) => (
+                {coreDisciplines.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
                   </option>
