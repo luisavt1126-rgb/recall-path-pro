@@ -9,6 +9,7 @@ import { Panel, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "
 import { addDays, formatTime, isSameDay, longDate, startOfWeek } from "@/lib/format";
 import { MEDCURSO_AREAS, PLAN_TAG, generateMedcursoPlan } from "@/lib/medcurso";
 import { URGENCY_META, dayUrgency } from "@/lib/priority";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
