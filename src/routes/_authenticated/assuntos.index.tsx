@@ -38,27 +38,17 @@ function SubjectsPage() {
   const { data: logs = [] } = useQuestionLogs();
   const stats = questionStatsBySubject(logs);
 
-  const [disciplineName, setDisciplineName] = useState("");
   const [subjectName, setSubjectName] = useState("");
   const [disciplineId, setDisciplineId] = useState("");
   const [parentId, setParentId] = useState("");
   const [incidence, setIncidence] = useState(3);
 
-  const addDiscipline = useMutation({
-    mutationFn: async () => {
-      const userId = await requireUserId();
-      const { error } = await supabase
-        .from("disciplines")
-        .insert({ user_id: userId, name: disciplineName.trim() });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      setDisciplineName("");
-      qc.invalidateQueries();
-      toast.success("Disciplina criada");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  useSeedCoreDisciplines(disciplines);
+
+  // Somente as 5 grandes áreas ficam disponíveis para novos assuntos.
+  const coreDisciplines = CORE_DISCIPLINES.map((name) =>
+    disciplines.find((d) => d.name.trim().toLowerCase() === name.toLowerCase()),
+  ).filter((d): d is NonNullable<typeof d> => Boolean(d));
 
   const addSubject = useMutation({
     mutationFn: async () => {
