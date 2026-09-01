@@ -51,6 +51,15 @@ function CalendarPage() {
   const weekStart = addDays(startOfWeek(new Date()), weekOffset * 7);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
+  const now = new Date();
+  const monthCursor = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const monthGridStart = startOfWeek(monthCursor);
+  const monthDays = Array.from({ length: 42 }, (_, i) => addDays(monthGridStart, i));
+  const monthLabel = monthCursor.toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
+
   const createEvent = useMutation({
     mutationFn: async () => {
       const userId = await requireUserId();
