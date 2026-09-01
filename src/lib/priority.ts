@@ -80,3 +80,110 @@ export function priorityLevel(score: number): PriorityLevel {
   if (score >= 22) return "normal";
   return "baixa";
 }
+
+const DAY_MS = DAY;
+
+// ---------------------------------------------------------------------------
+// Ranking 1 — baralhos do Anki (revisão atrasada, tempo desde a última revisão
+// e fragilidade do intervalo FSRS/SRS). Não mistura desempenho em questões.
+// ---------------------------------------------------------------------------
+
+export type DeckPriorityInput = {
+  next_review_at: string | null;
+  last_review_at: string | null;
+  interval_days: number;
+  status: string;
+};
+
+export type Reason = { text: string; tone: "rose" | "amber" | "violet" | "sage" };
+
+export function deckPriority(input: DeckPriorityInput) {
+  let score = 0;
+  const reasons: Reason[] = [];
+
+  if (input.next_review_at) {
+    const overdue = (Date.now() - new Date(input.next_review_at).getTime()) / DAY_MS;
+    if (overdue >= 1) {
+      score += Math.min(45, 12 + overdue * 5);
+      reasons.push({ text: `revisão atrasada ${Math.floor(overdue)}d`, tone: "rose" });
+    } else if (overdue >= 0) {
+      score += 22;
+      reasons.push({ text: "vence hoje", tone: "amber" });
+    }
+  } else {
+    score += 20;
+    reasons.push({ text: "sem revisão agendada", tone: "violet" });
+  }
+
+  if (input.last_review_at) {
+    const days = (Date.now() - new Date(input.last_review_at).getTime()) / DAY_MS;
+    score += Math.min(20, days * 0.5);
+    if (days >= 21) {
+      reasons.push({ text: `${Math.floor(days)}d sem abrir`, tone: "amber" });
+    }
+  } else {
+    score += 16;
+    reasons.push({ text: "nunca revisado", tone: "violet" });
+  }
+
+  const interval = Number(input.interval_days) || 0;
+  if (interval > 0 && interval <= 3) {
+    score += 12;
+    reasons.push({ text: `intervalo curto (${interval}d)`, tone: "rose" });
+  } else if (interval > 3 && interval <= 7) {
+    score += 6;
+  }
+
+  if (input.status === "novo") {
+    score += 8;
+    reasons.push({ text: "baralho novo", tone: "sage" });
+  }
+
+  return { score: Math.round(score), level: priorityLevel(Math.round(score)), reasons };
+}
+
+// ---------------------------------------------------------------------------
+// Ranking 2 — assuntos por desempenho em questões (% de erro, erros recentes e
+// incidência em provas). Independente do ranking de baralhos.
+// ---------------------------------------------------------------------------
+
+export type QuestionPriorityInput = {
+  accuracy: number | null;
+  total: number;
+  recentErrors: number;
+  exam_incidence: number;
+};
+
+export function questionPriority(input: QuestionPriorityInput) {
+  let score = 0;
+  const reasons: Reason[] = [];
+
+  const errorPct = input.accuracy === null ? null : 100 - input.accuracy;
+
+  if (errorPct !== null && input.total > 0) {
+    score += Math.min(50, errorPct * 0.55);
+    if (errorPct >= 50) {
+      reasons.push({ text: `${errorPct}% de erro`, tone: "rose" });
+    } else if (errorPct >= 30) {
+      reasons.push({ text: `${errorPct}% de erro`, tone: "amber" });
+    }
+    if (input.total < 10) {
+      reasons.push({ text: `amostra pequena (${input.total}q)`, tone: "violet" });
+    }
+  }
+
+  if (input.recentErrors > 0) {
+    score += Math.min(25, input.recentErrors * 3);
+    if (input.recentErrors >= 3) {
+      reasons.push({ text: `${input.recentErrors} erros em 30 dias`, tone: "rose" });
+    }
+  }
+
+  score += (input.exam_incidence - 3) * 4;
+  if (input.exam_incidence >= 4) {
+    reasons.push({ text: "alta incidência em prova", tone: "amber" });
+  }
+
+  const final = Math.round(Math.max(0, score));
+  return { score: final, level: priorityLevel(final), errorPct, reasons };
+}
