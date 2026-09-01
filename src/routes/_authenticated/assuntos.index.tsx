@@ -81,17 +81,15 @@ function SubjectsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const scoreOf = (subjectId: string) => {
+  const levelOf = (subjectId: string) => {
     const subject = subjects.find((s) => s.id === subjectId)!;
     const s = stats.get(subjectId) ?? EMPTY_STATS;
-    return priorityScore({
-      next_review_at: subject.next_review_at,
-      last_studied_at: subject.last_studied_at,
-      mastery: subject.mastery,
-      exam_incidence: subject.exam_incidence,
+    return questionPriority({
       accuracy: s.accuracy,
+      total: s.total,
       recentErrors: s.recentErrors,
-    });
+      exam_incidence: subject.exam_incidence,
+    }).level;
   };
 
   return (
