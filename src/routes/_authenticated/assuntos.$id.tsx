@@ -11,6 +11,7 @@ import {
 import { RATING_LABEL, type Rating } from "@/lib/srs";
 import { useRateSubject } from "@/lib/actions";
 import { Panel, Stat, Empty, buttonClass, ghostButtonClass } from "@/components/bits";
+import { PrepChecklist } from "@/components/SubjectPrep";
 import { formatDate, formatDateTime, formatHours } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/assuntos/$id")({
