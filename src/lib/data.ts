@@ -223,3 +223,34 @@ export function categoryMeta(value: string) {
     }
   );
 }
+
+export type ExamAnalysis = Tables["exam_analyses"]["Row"];
+export type ExamTopic = Tables["exam_topics"]["Row"];
+
+export function useExamAnalyses() {
+  return useQuery({
+    queryKey: ["exam_analyses"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("exam_analyses")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as ExamAnalysis[];
+    },
+  });
+}
+
+export function useExamTopics() {
+  return useQuery({
+    queryKey: ["exam_topics"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("exam_topics")
+        .select("*")
+        .order("incidence_pct", { ascending: false });
+      if (error) throw error;
+      return data as ExamTopic[];
+    },
+  });
+}
