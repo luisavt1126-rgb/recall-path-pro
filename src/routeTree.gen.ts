@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedBaralhosRouteImport } from './routes/_authenticated/baralhos'
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
+import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedGraficosRouteImport } from './routes/_authenticated/graficos'
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
 import { Route as AuthenticatedProvasRouteImport } from './routes/_authenticated/provas'
@@ -47,6 +48,12 @@ const AuthenticatedCalendarioRoute = AuthenticatedCalendarioRouteImport.update({
   path: '/calendario',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedConfiguracoesRoute =
+  AuthenticatedConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedGraficosRoute = AuthenticatedGraficosRouteImport.update({
   id: '/graficos',
   path: '/graficos',
@@ -95,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/baralhos': typeof AuthenticatedBaralhosRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/graficos': typeof AuthenticatedGraficosRoute
   '/hoje': typeof AuthenticatedHojeRoute
   '/provas': typeof AuthenticatedProvasRoute
@@ -109,6 +117,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/baralhos': typeof AuthenticatedBaralhosRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/graficos': typeof AuthenticatedGraficosRoute
   '/hoje': typeof AuthenticatedHojeRoute
   '/provas': typeof AuthenticatedProvasRoute
@@ -125,6 +134,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/baralhos': typeof AuthenticatedBaralhosRoute
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
+  '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/graficos': typeof AuthenticatedGraficosRoute
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
   '/_authenticated/provas': typeof AuthenticatedProvasRoute
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/baralhos'
     | '/calendario'
+    | '/configuracoes'
     | '/graficos'
     | '/hoje'
     | '/provas'
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/baralhos'
     | '/calendario'
+    | '/configuracoes'
     | '/graficos'
     | '/hoje'
     | '/provas'
@@ -170,6 +182,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/baralhos'
     | '/_authenticated/calendario'
+    | '/_authenticated/configuracoes'
     | '/_authenticated/graficos'
     | '/_authenticated/hoje'
     | '/_authenticated/provas'
@@ -221,6 +234,13 @@ declare module '@tanstack/react-router' {
       path: '/calendario'
       fullPath: '/calendario'
       preLoaderRoute: typeof AuthenticatedCalendarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/graficos': {
@@ -285,6 +305,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBaralhosRoute: typeof AuthenticatedBaralhosRoute
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
+  AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedGraficosRoute: typeof AuthenticatedGraficosRoute
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
   AuthenticatedProvasRoute: typeof AuthenticatedProvasRoute
@@ -298,6 +319,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBaralhosRoute: AuthenticatedBaralhosRoute,
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
+  AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedGraficosRoute: AuthenticatedGraficosRoute,
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
   AuthenticatedProvasRoute: AuthenticatedProvasRoute,
