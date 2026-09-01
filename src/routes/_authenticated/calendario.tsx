@@ -242,6 +242,7 @@ function CalendarPage() {
         </div>
       </Panel>
 
+      <Panel title="Novo compromisso">
 
         <form
           onSubmit={(e) => {
