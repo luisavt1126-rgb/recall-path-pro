@@ -16,7 +16,6 @@ import {
   useQuestionLogs,
   useStudySessions,
   useSubjects,
-  useDisciplines,
   questionStatsBySubject,
   EMPTY_STATS,
   categoryMeta,
@@ -33,7 +32,6 @@ import {
   formatTime,
   isSameDay,
   startOfWeek,
-  daysBetween,
 } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/hoje")({
@@ -55,7 +53,6 @@ function Dashboard() {
   const qc = useQueryClient();
   const { data: profile } = useProfile();
   const { data: subjects = [] } = useSubjects();
-  const { data: disciplines = [] } = useDisciplines();
   const { data: sessions = [] } = useStudySessions();
   const { data: logs = [] } = useQuestionLogs();
   const { data: decks = [] } = useDecks();
@@ -79,9 +76,6 @@ function Dashboard() {
   const monthAccuracy = monthTotal ? Math.round((monthCorrect / monthTotal) * 100) : 0;
 
   const stats = questionStatsBySubject(logs);
-  const disciplineName = (id: string | null) =>
-    disciplines.find((d) => d.id === id)?.name ?? "Sem disciplina";
-
   const ranked = subjects
     .map((subject) => {
       const s = stats.get(subject.id) ?? EMPTY_STATS;
