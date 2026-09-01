@@ -16,13 +16,14 @@ import {
   useQuestionLogs,
   useStudySessions,
   useSubjects,
-  useDisciplines,
   questionStatsBySubject,
   EMPTY_STATS,
   categoryMeta,
 } from "@/lib/data";
 import { priorityLevel, priorityScore } from "@/lib/priority";
-import { Panel, PriorityTag, Stat, Empty } from "@/components/bits";
+import { Panel, Stat, Empty } from "@/components/bits";
+import { PriorityRankings } from "@/components/PriorityRankings";
+
 import {
   addDays,
   decimalHours,
@@ -31,7 +32,6 @@ import {
   formatTime,
   isSameDay,
   startOfWeek,
-  daysBetween,
 } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/hoje")({
@@ -53,7 +53,6 @@ function Dashboard() {
   const qc = useQueryClient();
   const { data: profile } = useProfile();
   const { data: subjects = [] } = useSubjects();
-  const { data: disciplines = [] } = useDisciplines();
   const { data: sessions = [] } = useStudySessions();
   const { data: logs = [] } = useQuestionLogs();
   const { data: decks = [] } = useDecks();
@@ -77,9 +76,6 @@ function Dashboard() {
   const monthAccuracy = monthTotal ? Math.round((monthCorrect / monthTotal) * 100) : 0;
 
   const stats = questionStatsBySubject(logs);
-  const disciplineName = (id: string | null) =>
-    disciplines.find((d) => d.id === id)?.name ?? "Sem disciplina";
-
   const ranked = subjects
     .map((subject) => {
       const s = stats.get(subject.id) ?? EMPTY_STATS;
@@ -173,11 +169,11 @@ function Dashboard() {
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-5">
         <Panel
           title="Agenda de hoje"
-          className="lg:col-span-2"
           action={
+
             <Link to="/calendario" className="text-xs font-medium text-brand">
               Ver calendário
             </Link>
@@ -210,72 +206,12 @@ function Dashboard() {
           </div>
         </Panel>
 
-        <Panel
-          title="O que estudar hoje"
-          action={
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              prioridade inteligente
-            </span>
-          }
-        >
-          <div className="flex flex-col gap-2.5 text-sm">
-            {ranked.length === 0 && (
-              <Empty>
-                Comece cadastrando disciplinas e assuntos em{" "}
-                <Link to="/assuntos" className="text-brand">
-                  Assuntos
-                </Link>
-                .
-              </Empty>
-            )}
-            {ranked.slice(0, 5).map(({ subject, level, stats: s }) => (
-              <Link
-                key={subject.id}
-                to="/assuntos/$id"
-                params={{ id: subject.id }}
-                className="rounded-xl border border-border p-3 transition-colors hover:bg-secondary"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium">
-                    {disciplineName(subject.discipline_id)} — {subject.name}
-                  </p>
-                  <PriorityTag level={level} />
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  domínio {subject.mastery}%
-                  {s.accuracy !== null && ` · acertos ${s.accuracy}%`}
-                  {subject.next_review_at &&
-                    ` · revisão ${formatDate(subject.next_review_at)}`}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {subject.next_review_at &&
-                    new Date(subject.next_review_at) < today && (
-                      <span className="rounded-full bg-rose/10 px-2 py-0.5 text-[10px] font-medium text-rose">
-                        revisão atrasada{" "}
-                        {Math.max(1, daysBetween(today, subject.next_review_at))}d
-                      </span>
-                    )}
-                  {subject.mastery < 60 && (
-                    <span className="rounded-full bg-amber/10 px-2 py-0.5 text-[10px] font-medium text-amber">
-                      domínio baixo
-                    </span>
-                  )}
-                  {s.recentErrors >= 3 && (
-                    <span className="rounded-full bg-rose/10 px-2 py-0.5 text-[10px] font-medium text-rose">
-                      {s.recentErrors} erros recentes
-                    </span>
-                  )}
-                  {s.accuracy !== null && s.total >= 5 && s.accuracy < 70 && (
-                    <span className="rounded-full bg-violet/10 px-2 py-0.5 text-[10px] font-medium text-violet">
-                      acertos abaixo de 70%
-                    </span>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </Panel>
       </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <PriorityRankings limit={5} />
+      </div>
+
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Panel

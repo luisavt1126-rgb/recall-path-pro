@@ -11,6 +11,7 @@ import { RATING_LABEL, TARGET_RETENTION, type Rating } from "@/lib/srs";
 import { useRateSubject } from "@/lib/actions";
 import { Panel, PriorityTag, Stat, Empty, buttonClass, ghostButtonClass } from "@/components/bits";
 import { addDays, formatDate, isSameDay } from "@/lib/format";
+import { PriorityRankings } from "@/components/PriorityRankings";
 
 export const Route = createFileRoute("/_authenticated/revisoes")({
   head: () => ({
@@ -143,6 +144,10 @@ function ReviewsPage() {
           </div>
         )}
       </Panel>
+    
+      <div className="grid gap-5 lg:grid-cols-2">
+        <PriorityRankings limit={6} />
+      </div>
     </>
   );
 }

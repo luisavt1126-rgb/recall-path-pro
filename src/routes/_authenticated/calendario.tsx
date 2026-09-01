@@ -5,8 +5,11 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { requireUserId } from "@/lib/actions";
 import { EVENT_CATEGORIES, categoryMeta, useEvents, useSubjects } from "@/lib/data";
-import { Panel, Empty, Field, inputClass, buttonClass } from "@/components/bits";
+import { Panel, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { addDays, formatTime, isSameDay, longDate, startOfWeek } from "@/lib/format";
+import { MEDCURSO_AREAS, PLAN_TAG, generateMedcursoPlan } from "@/lib/medcurso";
+
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
@@ -35,6 +38,12 @@ function CalendarPage() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState("19:00");
   const [duration, setDuration] = useState("60");
+
+  const [planStart, setPlanStart] = useState(new Date().toISOString().slice(0, 10));
+  const [planDays, setPlanDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [planLessonTime, setPlanLessonTime] = useState("19:00");
+  const [planReviewTime, setPlanReviewTime] = useState("07:30");
+  const [planAreas, setPlanAreas] = useState<string[]>([...MEDCURSO_AREAS]);
 
   const weekStart = addDays(startOfWeek(new Date()), weekOffset * 7);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -82,9 +91,159 @@ function CalendarPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const planEvents = events.filter((e) => e.plan_tag === PLAN_TAG);
+
+  const generatePlan = useMutation({
+    mutationFn: async () => {
+      const userId = await requireUserId();
+      const [y, m, d] = planStart.split("-").map(Number);
+      const plan = generateMedcursoPlan({
+        startDate: new Date(y ?? 2026, (m ?? 1) - 1, d ?? 1),
+        weekdays: planDays,
+        lessonTime: planLessonTime,
+        reviewTime: planReviewTime,
+        areas: planAreas,
+      });
+      // regera do zero: apaga o plano anterior antes de inserir o novo
+      const { error: delError } = await supabase
+        .from("events")
+        .delete()
+        .eq("plan_tag", PLAN_TAG);
+      if (delError) throw delError;
+      const rows = plan.map((e) => ({ ...e, user_id: userId }));
+      for (let i = 0; i < rows.length; i += 200) {
+        const { error } = await supabase.from("events").insert(rows.slice(i, i + 200));
+        if (error) throw error;
+      }
+      return rows.length;
+    },
+    onSuccess: (count) => {
+      qc.invalidateQueries();
+      toast.success(`Cronograma Medcurso gerado: ${count} compromissos`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const clearPlan = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("events").delete().eq("plan_tag", PLAN_TAG);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries();
+      toast.success("Cronograma Medcurso removido");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <>
+      <Panel
+        title="Cronograma Medcurso automático"
+        action={
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            {planEvents.length} itens no plano
+          </span>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          Gera as aulas do ciclo Medgrupo/Medcurso nos dias escolhidos e já agenda as
+          revisões em D+1, 3, 8, 17, 35 e 70 (retenção de 95%).
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Início">
+            <input
+              type="date"
+              className={inputClass}
+              value={planStart}
+              onChange={(e) => setPlanStart(e.target.value)}
+            />
+          </Field>
+          <Field label="Hora da aula">
+            <input
+              type="time"
+              className={inputClass}
+              value={planLessonTime}
+              onChange={(e) => setPlanLessonTime(e.target.value)}
+            />
+          </Field>
+          <Field label="Hora da revisão">
+            <input
+              type="time"
+              className={inputClass}
+              value={planReviewTime}
+              onChange={(e) => setPlanReviewTime(e.target.value)}
+            />
+          </Field>
+          <div className="flex items-end gap-2">
+            <button
+              className={buttonClass}
+              disabled={generatePlan.isPending}
+              onClick={() => generatePlan.mutate()}
+            >
+              {planEvents.length ? "Regerar plano" : "Gerar cronograma"}
+            </button>
+            <button
+              className={ghostButtonClass}
+              disabled={!planEvents.length || clearPlan.isPending}
+              onClick={() => clearPlan.mutate()}
+            >
+              Limpar
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <p className="text-xs font-medium text-muted-foreground">Dias de aula</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {WEEKDAYS.map((day, index) => {
+              const active = planDays.includes(index);
+              return (
+                <button
+                  key={day}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                    active ? "border-brand bg-brand/10 text-brand" : "border-border text-muted-foreground"
+                  }`}
+                  onClick={() =>
+                    setPlanDays((d) =>
+                      d.includes(index) ? d.filter((x) => x !== index) : [...d, index],
+                    )
+                  }
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <p className="text-xs font-medium text-muted-foreground">Grandes áreas</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {MEDCURSO_AREAS.map((area) => {
+              const active = planAreas.includes(area);
+              return (
+                <button
+                  key={area}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                    active ? "border-brand bg-brand/10 text-brand" : "border-border text-muted-foreground"
+                  }`}
+                  onClick={() =>
+                    setPlanAreas((a) =>
+                      a.includes(area) ? a.filter((x) => x !== area) : [...a, area],
+                    )
+                  }
+                >
+                  {area}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </Panel>
+
       <Panel title="Novo compromisso">
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
