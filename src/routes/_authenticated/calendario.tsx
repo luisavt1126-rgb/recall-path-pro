@@ -32,6 +32,8 @@ function CalendarPage() {
   const { data: events = [] } = useEvents();
   const { data: subjects = [] } = useSubjects();
   const [weekOffset, setWeekOffset] = useState(0);
+  const [viewMode, setViewMode] = useState<"semana" | "mes">("semana");
+  const [monthOffset, setMonthOffset] = useState(0);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("estudar");
