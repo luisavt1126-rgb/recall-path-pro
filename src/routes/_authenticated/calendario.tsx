@@ -9,6 +9,7 @@ import { Panel, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "
 import { addDays, formatTime, isSameDay, longDate, startOfWeek } from "@/lib/format";
 import { MEDCURSO_AREAS, PLAN_TAG, generateMedcursoPlan } from "@/lib/medcurso";
 import { URGENCY_META, dayUrgency } from "@/lib/priority";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -408,55 +409,83 @@ function CalendarPage() {
                     const rb = rank[dayUrgency(b.starts_at, b.status === "concluido")];
                     return ra - rb || a.starts_at.localeCompare(b.starts_at);
                   });
-                const visible = dayEvents.slice(0, 3);
-                const hidden = dayEvents.length - visible.length;
+                const critical = dayEvents[0];
+                const criticalUrgency = critical
+                  ? dayUrgency(critical.starts_at, critical.status === "concluido")
+                  : null;
+                const heat =
+                  !inMonth
+                    ? "bg-muted/40 text-muted-foreground/50"
+                    : criticalUrgency === "atrasado"
+                      ? "bg-rose text-white"
+                      : criticalUrgency === "proximo"
+                        ? "bg-amber text-amber-950"
+                        : criticalUrgency === "em_dia"
+                          ? "bg-sage text-white"
+                          : "bg-muted text-muted-foreground";
+                const count = dayEvents.length;
                 return (
-                  <div
-                    key={day.toISOString()}
-                    className={`min-h-20 rounded-lg border p-1.5 ${
-                      isToday
-                        ? "border-brand bg-brand/5"
-                        : inMonth
-                          ? "border-border"
-                          : "border-border/50 bg-muted/30"
-                    }`}
-                  >
-                    <p
-                      className={`text-right text-[10px] font-semibold ${
-                        isToday
-                          ? "text-brand"
-                          : inMonth
-                            ? "text-foreground"
-                            : "text-muted-foreground/60"
-                      }`}
+                  <Popover key={day.toISOString()}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={`group relative aspect-square w-full rounded-lg p-1 text-left transition-transform active:scale-95 ${heat} ${
+                          isToday ? "ring-2 ring-brand ring-offset-1" : ""
+                        }`}
+                      >
+                        <span className="absolute left-1.5 top-1 text-[10px] font-semibold leading-none">
+                          {day.getDate()}
+                        </span>
+                        {count > 1 && (
+                          <span className="absolute bottom-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-white/90 px-1 text-[9px] font-bold text-foreground shadow-sm">
+                            {count}
+                          </span>
+                        )}
+                        {count === 1 && (
+                          <span className="absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-white/90 shadow-sm" />
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="center"
+                      side="top"
+                      className="w-64 space-y-2 p-3"
                     >
-                      {day.getDate()}
-                    </p>
-                    <div className="mt-0.5 space-y-0.5">
-                      {visible.map((event) => {
-                        const done = event.status === "concluido";
-                        const urgency = dayUrgency(event.starts_at, done);
-                        const u = URGENCY_META[urgency];
-                        return (
-                          <div
-                            key={event.id}
-                            title={`${formatTime(event.starts_at)} · ${event.title} — ${u.label}`}
-                            className={`flex items-center gap-1 truncate rounded border px-1 py-0.5 text-[9px] font-medium ${u.chip}`}
-                          >
-                            <span className={`h-1 w-1 shrink-0 rounded-full ${u.dot}`} />
-                            <span className={`truncate ${done ? "line-through opacity-70" : ""}`}>
-                              {formatTime(event.starts_at)} {event.title}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      {hidden > 0 && (
-                        <p className="px-1 text-[9px] font-medium text-muted-foreground">
-                          +{hidden} mais
-                        </p>
+                      <p className="text-xs font-semibold text-foreground">
+                        {day.toLocaleDateString("pt-BR", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "long",
+                        })}
+                      </p>
+                      {count === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nenhum compromisso.</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {dayEvents.map((event) => {
+                            const done = event.status === "concluido";
+                            const u = URGENCY_META[dayUrgency(event.starts_at, done)];
+                            return (
+                              <div
+                                key={event.id}
+                                className="flex items-start gap-2 rounded-md border border-border bg-card p-2 text-[11px]"
+                              >
+                                <span className={`mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full ${u.dot}`} />
+                                <div className="min-w-0 flex-1">
+                                  <p className={`truncate font-medium ${done ? "line-through opacity-60" : ""}`}>
+                                    {event.title}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    {formatTime(event.starts_at)} · {event.duration_min}min
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
-                    </div>
-                  </div>
+                    </PopoverContent>
+                  </Popover>
                 );
               })}
             </div>
