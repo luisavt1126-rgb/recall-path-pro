@@ -11,6 +11,7 @@ import {
 import { RATING_LABEL, type Rating } from "@/lib/srs";
 import { useRateSubject } from "@/lib/actions";
 import { Panel, Stat, Empty, buttonClass, ghostButtonClass } from "@/components/bits";
+import { PrepChecklist } from "@/components/SubjectPrep";
 import { formatDate, formatDateTime, formatHours } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/assuntos/$id")({
@@ -87,6 +88,14 @@ function SubjectDetail() {
           hint={`intervalo ${Math.round(Number(subject.interval_days))} dias`}
         />
       </div>
+
+      <Panel title="Preparo do assunto">
+        <p className="mb-3 text-sm text-muted-foreground">
+          Marque o que já está pronto. A primeira marcação registra automaticamente o
+          primeiro estudo deste assunto.
+        </p>
+        <PrepChecklist subject={subject} />
+      </Panel>
 
       <Panel title="Registrar revisão">
         <p className="text-sm text-muted-foreground">

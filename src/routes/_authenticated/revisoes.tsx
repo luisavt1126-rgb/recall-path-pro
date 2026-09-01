@@ -6,7 +6,7 @@ import {
   useQuestionLogs,
   useSubjects,
 } from "@/lib/data";
-import { priorityLevel, priorityScore } from "@/lib/priority";
+import { questionPriority } from "@/lib/priority";
 import { RATING_LABEL, TARGET_RETENTION, type Rating } from "@/lib/srs";
 import { useRateSubject } from "@/lib/actions";
 import { Panel, PriorityTag, Stat, Empty, buttonClass, ghostButtonClass } from "@/components/bits";
@@ -41,15 +41,13 @@ function ReviewsPage() {
   const items = subjects
     .map((subject) => {
       const s = stats.get(subject.id) ?? EMPTY_STATS;
-      const score = priorityScore({
-        next_review_at: subject.next_review_at,
-        last_studied_at: subject.last_studied_at,
-        mastery: subject.mastery,
-        exam_incidence: subject.exam_incidence,
+      const { score, level } = questionPriority({
         accuracy: s.accuracy,
+        total: s.total,
         recentErrors: s.recentErrors,
+        exam_incidence: subject.exam_incidence,
       });
-      return { subject, score, level: priorityLevel(score) };
+      return { subject, score, level };
     })
     .sort((a, b) => b.score - a.score);
 

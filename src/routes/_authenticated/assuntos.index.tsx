@@ -11,8 +11,9 @@ import {
   useQuestionLogs,
   useSubjects,
 } from "@/lib/data";
-import { priorityLevel, priorityScore } from "@/lib/priority";
+import { questionPriority } from "@/lib/priority";
 import { Panel, PriorityTag, Field, inputClass, buttonClass, Empty } from "@/components/bits";
+import { PrepIcons } from "@/components/SubjectPrep";
 import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/assuntos/")({
@@ -80,17 +81,15 @@ function SubjectsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const scoreOf = (subjectId: string) => {
+  const levelOf = (subjectId: string) => {
     const subject = subjects.find((s) => s.id === subjectId)!;
     const s = stats.get(subjectId) ?? EMPTY_STATS;
-    return priorityScore({
-      next_review_at: subject.next_review_at,
-      last_studied_at: subject.last_studied_at,
-      mastery: subject.mastery,
-      exam_incidence: subject.exam_incidence,
+    return questionPriority({
       accuracy: s.accuracy,
+      total: s.total,
       recentErrors: s.recentErrors,
-    });
+      exam_incidence: subject.exam_incidence,
+    }).level;
   };
 
   return (
@@ -224,7 +223,10 @@ function SubjectsPage() {
       >
         <div className="flex items-start justify-between gap-2">
           <p className={`font-medium ${nested ? "text-sm" : ""}`}>{subject.name}</p>
-          <PriorityTag level={priorityLevel(scoreOf(subject.id))} />
+          <div className="flex shrink-0 items-center gap-2">
+            <PrepIcons subject={subject} />
+            <PriorityTag level={levelOf(subject.id)} />
+          </div>
         </div>
         <div className="mt-1.5 flex items-center gap-3">
           <div className="h-1.5 w-24 overflow-hidden rounded-full bg-secondary">

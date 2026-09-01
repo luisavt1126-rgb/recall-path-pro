@@ -111,3 +111,36 @@ export function useLogStudySession() {
     onError: (error: Error) => toast.error(error.message),
   });
 }
+
+type PrepField = "video_watched_at" | "summary_ready_at" | "deck_ready_at";
+
+/**
+ * Marca/desmarca um item do checklist de preparo do assunto.
+ * Ao marcar pela primeira vez, preenche first_studied_at se ainda estiver vazio.
+ */
+export function useSetSubjectPrep() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      subject,
+      field,
+      done,
+    }: {
+      subject: Subject;
+      field: PrepField;
+      done: boolean;
+    }) => {
+      const now = new Date().toISOString();
+      const patch: Partial<Subject> = { [field]: done ? now : null };
+      if (done && !subject.first_studied_at) patch.first_studied_at = now;
+      const { error } = await supabase.from("subjects").update(patch).eq("id", subject.id);
+      if (error) throw error;
+      return done;
+    },
+    onSuccess: (done) => {
+      qc.invalidateQueries({ queryKey: ["subjects"] });
+      toast.success(done ? "Marcado como pronto" : "Marcação removida");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
