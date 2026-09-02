@@ -342,14 +342,16 @@ function CalendarPage() {
 
       <Panel
         title={
-          viewMode === "semana"
-            ? `Semana de ${weekStart.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`
-            : monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+          viewMode === "dia"
+            ? longDate(dayCursor)
+            : viewMode === "semana"
+              ? `Semana de ${weekStart.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`
+              : monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
         }
         action={
           <div className="flex items-center gap-2 text-xs">
             <div className="flex overflow-hidden rounded-lg border border-border">
-              {(["semana", "mes"] as const).map((mode) => (
+              {(["dia", "semana", "mes"] as const).map((mode) => (
                 <button
                   key={mode}
                   className={`px-2.5 py-1 font-medium ${
@@ -359,38 +361,49 @@ function CalendarPage() {
                   }`}
                   onClick={() => setViewMode(mode)}
                 >
-                  {mode === "semana" ? "Semana" : "Mês"}
+                  {mode === "dia" ? "Dia" : mode === "semana" ? "Semana" : "Mês"}
                 </button>
               ))}
             </div>
             <button
               className="rounded-lg border border-border px-2 py-1"
               onClick={() =>
-                viewMode === "semana"
-                  ? setWeekOffset((w) => w - 1)
-                  : setMonthOffset((m) => m - 1)
+                viewMode === "dia"
+                  ? setDayOffset((d) => d - 1)
+                  : viewMode === "semana"
+                    ? setWeekOffset((w) => w - 1)
+                    : setMonthOffset((m) => m - 1)
               }
             >
               ←
             </button>
             <button
               className="rounded-lg border border-border px-2 py-1"
-              onClick={() => (viewMode === "semana" ? setWeekOffset(0) : setMonthOffset(0))}
+              onClick={() =>
+                viewMode === "dia"
+                  ? setDayOffset(0)
+                  : viewMode === "semana"
+                    ? setWeekOffset(0)
+                    : setMonthOffset(0)
+              }
             >
               Hoje
             </button>
             <button
               className="rounded-lg border border-border px-2 py-1"
               onClick={() =>
-                viewMode === "semana"
-                  ? setWeekOffset((w) => w + 1)
-                  : setMonthOffset((m) => m + 1)
+                viewMode === "dia"
+                  ? setDayOffset((d) => d + 1)
+                  : viewMode === "semana"
+                    ? setWeekOffset((w) => w + 1)
+                    : setMonthOffset((m) => m + 1)
               }
             >
               →
             </button>
           </div>
         }
+
       >
         {viewMode === "mes" ? (
           <>
