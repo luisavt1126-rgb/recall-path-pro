@@ -84,6 +84,30 @@ function QuestionsPage() {
     .map(([name, v]) => ({ name, ...v, acc: Math.round((v.correct / v.total) * 100) }))
     .sort((a, b) => a.acc - b.acc);
 
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthBySubject = new Map<string, { total: number; correct: number }>();
+  for (const log of logs) {
+    if (!log.subject_id) continue;
+    if (new Date(log.created_at) < monthStart) continue;
+    const entry = monthBySubject.get(log.subject_id) ?? { total: 0, correct: 0 };
+    entry.total += log.total;
+    entry.correct += log.correct;
+    monthBySubject.set(log.subject_id, entry);
+  }
+  const monthRanked = [...monthBySubject.entries()]
+    .map(([id, v]) => ({
+      id,
+      name: subjects.find((s) => s.id === id)?.name ?? "Assunto",
+      total: v.total,
+      acc: Math.round((v.correct / v.total) * 100),
+    }))
+    .sort((a, b) => b.acc - a.acc);
+  const monthBest = monthRanked.slice(0, 5);
+  const monthWorst = [...monthRanked].reverse().slice(0, 5);
+  const monthLabel = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+
   return (
     <>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
