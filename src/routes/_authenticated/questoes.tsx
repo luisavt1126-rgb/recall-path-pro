@@ -3,7 +3,11 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { requireUserId, startSubjectCycle } from "@/lib/actions";
+import {
+  requireUserId,
+  startSubjectCycle,
+  nudgeMasteryFromQuestions,
+} from "@/lib/actions";
 import { useDisciplines, useQuestionLogs, useSubjects } from "@/lib/data";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass } from "@/components/bits";
 import { formatDate } from "@/lib/format";
@@ -49,7 +53,11 @@ function QuestionsPage() {
         correct: Number(correct),
       });
       if (error) throw error;
-      if (subjectId) await startSubjectCycle(subjectId);
+      if (subjectId) {
+        await startSubjectCycle(subjectId);
+        const t = Number(total);
+        if (t > 0) await nudgeMasteryFromQuestions(subjectId, (Number(correct) / t) * 100);
+      }
 
     },
     onSuccess: () => {
