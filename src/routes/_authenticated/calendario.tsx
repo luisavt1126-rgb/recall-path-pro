@@ -62,6 +62,12 @@ function CalendarPage() {
     year: "numeric",
   });
 
+  const dayCursor = addDays(new Date(), dayOffset);
+  const dayCursorEvents = events
+    .filter((e) => isSameDay(new Date(e.starts_at), dayCursor))
+    .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+
+
   const createEvent = useMutation({
     mutationFn: async () => {
       const userId = await requireUserId();
