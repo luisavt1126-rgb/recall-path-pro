@@ -23,6 +23,7 @@ import {
 import { questionPriority } from "@/lib/priority";
 import { Panel, Stat, Empty } from "@/components/bits";
 import { PriorityRankings } from "@/components/PriorityRankings";
+import { FlashcardStreak } from "@/components/FlashcardStreak";
 
 import {
   addDays,
@@ -208,6 +209,16 @@ function Dashboard() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <PriorityRankings limit={5} />
+        <Panel
+          title="Sequência de flashcards"
+          action={
+            <Link to="/baralhos" className="text-xs font-medium text-brand">
+              Baralhos
+            </Link>
+          }
+        >
+          <FlashcardStreak />
+        </Panel>
       </div>
 
 
