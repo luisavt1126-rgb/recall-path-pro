@@ -171,6 +171,41 @@ export function useSetSubjectPrep() {
   });
 }
 
+/**
+ * Edita a data de um item do checklist de preparo (registro retroativo).
+ * Se a nova data for anterior ao first_studied_at atual, recua o primeiro estudo.
+ */
+export function useSetSubjectPrepDate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      subject,
+      field,
+      date,
+    }: {
+      subject: Subject;
+      field: PrepField;
+      date: string; // yyyy-mm-dd
+    }) => {
+      const iso = new Date(`${date}T12:00:00`).toISOString();
+      const patch: Partial<Subject> = { [field]: iso };
+      if (!subject.first_studied_at || iso < subject.first_studied_at) {
+        patch.first_studied_at = iso;
+      }
+      const { error } = await supabase.from("subjects").update(patch).eq("id", subject.id);
+      if (error) throw error;
+      await startSubjectCycle(subject.id, iso);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["subjects"] });
+      toast.success("Data atualizada");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+
+
 
 const clampMastery = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
