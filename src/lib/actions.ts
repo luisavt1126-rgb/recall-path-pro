@@ -171,3 +171,37 @@ export function useSetSubjectPrep() {
   });
 }
 
+
+const clampMastery = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+
+/**
+ * Puxa o domínio do assunto levemente em direção à taxa de acerto do bloco
+ * (peso 0.8 para o domínio atual, 0.2 para o bloco).
+ */
+export async function nudgeMasteryFromQuestions(subjectId: string, accuracyPct: number) {
+  const { data: subject } = await supabase
+    .from("subjects")
+    .select("mastery")
+    .eq("id", subjectId)
+    .maybeSingle();
+  if (!subject) return;
+  const current = Number(subject["mastery"] ?? 0);
+  await supabase
+    .from("subjects")
+    .update({ mastery: clampMastery(current * 0.8 + accuracyPct * 0.2) })
+    .eq("id", subjectId);
+}
+
+/** Ajusta o domínio do assunto em +/- delta pontos, limitado a 0–100. */
+export async function nudgeMastery(subjectId: string, delta: number) {
+  const { data: subject } = await supabase
+    .from("subjects")
+    .select("mastery")
+    .eq("id", subjectId)
+    .maybeSingle();
+  if (!subject) return;
+  await supabase
+    .from("subjects")
+    .update({ mastery: clampMastery(Number(subject["mastery"] ?? 0) + delta) })
+    .eq("id", subjectId);
+}
