@@ -181,6 +181,49 @@ function QuestionsPage() {
         </form>
       </Panel>
 
+      <Panel
+        title="Relatório do mês"
+        action={
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            {monthLabel}
+          </span>
+        }
+      >
+        {monthRanked.length === 0 ? (
+          <Empty>Nenhuma questão registrada neste mês ainda.</Empty>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2">
+            {(
+              [
+                { label: "🟢 Melhores assuntos", rows: monthBest, good: true },
+                { label: "🔴 Assuntos mais frágeis", rows: monthWorst, good: false },
+              ] as const
+            ).map((block) => (
+              <div key={block.label}>
+                <p className="text-xs font-semibold text-muted-foreground">{block.label}</p>
+                <div className="mt-2 space-y-2 text-sm">
+                  {block.rows.map((row) => (
+                    <div key={row.id} className="flex items-center gap-3">
+                      <span className="w-32 shrink-0 truncate text-xs">{row.name}</span>
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className={`h-full rounded-full ${block.good ? "bg-brand" : "bg-rose"}`}
+                          style={{ width: `${row.acc}%` }}
+                        />
+                      </div>
+                      <span className="w-20 shrink-0 text-right text-xs text-muted-foreground">
+                        {row.acc}% · {row.total}q
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
+
+
       <div className="grid gap-5 lg:grid-cols-2">
         <Panel title="Desempenho por banca">
           {worst.length === 0 ? (
