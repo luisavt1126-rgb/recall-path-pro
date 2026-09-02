@@ -3,7 +3,11 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { requireUserId, startSubjectCycle } from "@/lib/actions";
+import {
+  requireUserId,
+  startSubjectCycle,
+  nudgeMasteryFromQuestions,
+} from "@/lib/actions";
 import { useDisciplines, useQuestionLogs, useSubjects } from "@/lib/data";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass } from "@/components/bits";
 import { formatDate } from "@/lib/format";
@@ -49,7 +53,11 @@ function QuestionsPage() {
         correct: Number(correct),
       });
       if (error) throw error;
-      if (subjectId) await startSubjectCycle(subjectId);
+      if (subjectId) {
+        await startSubjectCycle(subjectId);
+        const t = Number(total);
+        if (t > 0) await nudgeMasteryFromQuestions(subjectId, (Number(correct) / t) * 100);
+      }
 
     },
     onSuccess: () => {
@@ -75,6 +83,30 @@ function QuestionsPage() {
   const worst = [...byBanca.entries()]
     .map(([name, v]) => ({ name, ...v, acc: Math.round((v.correct / v.total) * 100) }))
     .sort((a, b) => a.acc - b.acc);
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthBySubject = new Map<string, { total: number; correct: number }>();
+  for (const log of logs) {
+    if (!log.subject_id) continue;
+    if (new Date(log.created_at) < monthStart) continue;
+    const entry = monthBySubject.get(log.subject_id) ?? { total: 0, correct: 0 };
+    entry.total += log.total;
+    entry.correct += log.correct;
+    monthBySubject.set(log.subject_id, entry);
+  }
+  const monthRanked = [...monthBySubject.entries()]
+    .map(([id, v]) => ({
+      id,
+      name: subjects.find((s) => s.id === id)?.name ?? "Assunto",
+      total: v.total,
+      acc: Math.round((v.correct / v.total) * 100),
+    }))
+    .sort((a, b) => b.acc - a.acc);
+  const monthBest = monthRanked.slice(0, 5);
+  const monthWorst = [...monthRanked].reverse().slice(0, 5);
+  const monthLabel = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
 
   return (
     <>
@@ -148,6 +180,49 @@ function QuestionsPage() {
           </div>
         </form>
       </Panel>
+
+      <Panel
+        title="Relatório do mês"
+        action={
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            {monthLabel}
+          </span>
+        }
+      >
+        {monthRanked.length === 0 ? (
+          <Empty>Nenhuma questão registrada neste mês ainda.</Empty>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2">
+            {(
+              [
+                { label: "🟢 Melhores assuntos", rows: monthBest, good: true },
+                { label: "🔴 Assuntos mais frágeis", rows: monthWorst, good: false },
+              ] as const
+            ).map((block) => (
+              <div key={block.label}>
+                <p className="text-xs font-semibold text-muted-foreground">{block.label}</p>
+                <div className="mt-2 space-y-2 text-sm">
+                  {block.rows.map((row) => (
+                    <div key={row.id} className="flex items-center gap-3">
+                      <span className="w-32 shrink-0 truncate text-xs">{row.name}</span>
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className={`h-full rounded-full ${block.good ? "bg-brand" : "bg-rose"}`}
+                          style={{ width: `${row.acc}%` }}
+                        />
+                      </div>
+                      <span className="w-20 shrink-0 text-right text-xs text-muted-foreground">
+                        {row.acc}% · {row.total}q
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
+
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Panel title="Desempenho por banca">

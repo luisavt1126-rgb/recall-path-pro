@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { requireUserId, startSubjectCycle } from "@/lib/actions";
+import { requireUserId, startSubjectCycle, nudgeMastery } from "@/lib/actions";
 import { useDecks, useSubjects, type AnkiDeck } from "@/lib/data";
 import { nextDeckInterval } from "@/lib/srs";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
@@ -91,7 +91,10 @@ function DecksPage() {
         })
         .eq("id", deck.id);
       if (updateError) throw updateError;
-      if (deck.subject_id) await startSubjectCycle(deck.subject_id, now.toISOString());
+      if (deck.subject_id) {
+        await startSubjectCycle(deck.subject_id, now.toISOString());
+        await nudgeMastery(deck.subject_id, good ? 3 : -3);
+      }
 
     },
     onSuccess: () => {

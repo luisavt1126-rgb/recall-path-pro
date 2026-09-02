@@ -33,8 +33,9 @@ function CalendarPage() {
   const { data: events = [] } = useEvents();
   const { data: subjects = [] } = useSubjects();
   const [weekOffset, setWeekOffset] = useState(0);
-  const [viewMode, setViewMode] = useState<"semana" | "mes">("semana");
+  const [viewMode, setViewMode] = useState<"dia" | "semana" | "mes">("semana");
   const [monthOffset, setMonthOffset] = useState(0);
+  const [dayOffset, setDayOffset] = useState(0);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("estudar");
@@ -60,6 +61,12 @@ function CalendarPage() {
     month: "long",
     year: "numeric",
   });
+
+  const dayCursor = addDays(new Date(), dayOffset);
+  const dayCursorEvents = events
+    .filter((e) => isSameDay(new Date(e.starts_at), dayCursor))
+    .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+
 
   const createEvent = useMutation({
     mutationFn: async () => {
@@ -335,14 +342,16 @@ function CalendarPage() {
 
       <Panel
         title={
-          viewMode === "semana"
-            ? `Semana de ${weekStart.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`
-            : monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+          viewMode === "dia"
+            ? longDate(dayCursor)
+            : viewMode === "semana"
+              ? `Semana de ${weekStart.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`
+              : monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
         }
         action={
           <div className="flex items-center gap-2 text-xs">
             <div className="flex overflow-hidden rounded-lg border border-border">
-              {(["semana", "mes"] as const).map((mode) => (
+              {(["dia", "semana", "mes"] as const).map((mode) => (
                 <button
                   key={mode}
                   className={`px-2.5 py-1 font-medium ${
@@ -352,40 +361,96 @@ function CalendarPage() {
                   }`}
                   onClick={() => setViewMode(mode)}
                 >
-                  {mode === "semana" ? "Semana" : "Mês"}
+                  {mode === "dia" ? "Dia" : mode === "semana" ? "Semana" : "Mês"}
                 </button>
               ))}
             </div>
             <button
               className="rounded-lg border border-border px-2 py-1"
               onClick={() =>
-                viewMode === "semana"
-                  ? setWeekOffset((w) => w - 1)
-                  : setMonthOffset((m) => m - 1)
+                viewMode === "dia"
+                  ? setDayOffset((d) => d - 1)
+                  : viewMode === "semana"
+                    ? setWeekOffset((w) => w - 1)
+                    : setMonthOffset((m) => m - 1)
               }
             >
               ←
             </button>
             <button
               className="rounded-lg border border-border px-2 py-1"
-              onClick={() => (viewMode === "semana" ? setWeekOffset(0) : setMonthOffset(0))}
+              onClick={() =>
+                viewMode === "dia"
+                  ? setDayOffset(0)
+                  : viewMode === "semana"
+                    ? setWeekOffset(0)
+                    : setMonthOffset(0)
+              }
             >
               Hoje
             </button>
             <button
               className="rounded-lg border border-border px-2 py-1"
               onClick={() =>
-                viewMode === "semana"
-                  ? setWeekOffset((w) => w + 1)
-                  : setMonthOffset((m) => m + 1)
+                viewMode === "dia"
+                  ? setDayOffset((d) => d + 1)
+                  : viewMode === "semana"
+                    ? setWeekOffset((w) => w + 1)
+                    : setMonthOffset((m) => m + 1)
               }
             >
               →
             </button>
           </div>
         }
+
       >
-        {viewMode === "mes" ? (
+        {viewMode === "dia" ? (
+          <div className="space-y-2 text-sm">
+            {dayCursorEvents.length === 0 && <Empty>Nenhum compromisso neste dia.</Empty>}
+            {dayCursorEvents.map((event) => {
+              const meta = categoryMeta(event.category);
+              const done = event.status === "concluido";
+              const u = URGENCY_META[dayUrgency(event.starts_at, done)];
+              return (
+                <div
+                  key={event.id}
+                  className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5"
+                >
+                  <span className={`h-10 w-1 shrink-0 rounded-full ${meta.color}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className={`truncate font-medium ${done ? "line-through opacity-60" : ""}`}>
+                      {formatTime(event.starts_at)} · {event.title}
+                    </p>
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className={`h-1.5 w-1.5 rounded-full ${u.dot}`} />
+                      {meta.label} · {event.duration_min} min · {done ? "concluído" : event.status}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2 text-xs">
+                    <button
+                      className="text-brand"
+                      onClick={() =>
+                        toggleStatus.mutate({
+                          id: event.id,
+                          status: done ? "pendente" : "concluido",
+                        })
+                      }
+                    >
+                      {done ? "Reabrir" : "Concluir"}
+                    </button>
+                    <button
+                      className="text-muted-foreground hover:text-rose"
+                      onClick={() => removeEvent.mutate(event.id)}
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : viewMode === "mes" ? (
           <>
             <div className="mb-2 grid grid-cols-7 gap-1.5">
               {WEEKDAYS.map((d) => (

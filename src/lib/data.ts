@@ -254,3 +254,18 @@ export function useExamTopics() {
     },
   });
 }
+
+export function useDeckSessions() {
+  return useQuery({
+    queryKey: ["deck_sessions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("deck_sessions")
+        .select("*")
+        .order("reviewed_at", { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      return data as DeckSession[];
+    },
+  });
+}
