@@ -405,7 +405,52 @@ function CalendarPage() {
         }
 
       >
-        {viewMode === "mes" ? (
+        {viewMode === "dia" ? (
+          <div className="space-y-2 text-sm">
+            {dayCursorEvents.length === 0 && <Empty>Nenhum compromisso neste dia.</Empty>}
+            {dayCursorEvents.map((event) => {
+              const meta = categoryMeta(event.category);
+              const done = event.status === "concluido";
+              const u = URGENCY_META[dayUrgency(event.starts_at, done)];
+              return (
+                <div
+                  key={event.id}
+                  className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5"
+                >
+                  <span className={`h-10 w-1 shrink-0 rounded-full ${meta.color}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className={`truncate font-medium ${done ? "line-through opacity-60" : ""}`}>
+                      {formatTime(event.starts_at)} · {event.title}
+                    </p>
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className={`h-1.5 w-1.5 rounded-full ${u.dot}`} />
+                      {meta.label} · {event.duration_min} min · {done ? "concluído" : event.status}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2 text-xs">
+                    <button
+                      className="text-brand"
+                      onClick={() =>
+                        toggleStatus.mutate({
+                          id: event.id,
+                          status: done ? "pendente" : "concluido",
+                        })
+                      }
+                    >
+                      {done ? "Reabrir" : "Concluir"}
+                    </button>
+                    <button
+                      className="text-muted-foreground hover:text-rose"
+                      onClick={() => removeEvent.mutate(event.id)}
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : viewMode === "mes" ? (
           <>
             <div className="mb-2 grid grid-cols-7 gap-1.5">
               {WEEKDAYS.map((d) => (
