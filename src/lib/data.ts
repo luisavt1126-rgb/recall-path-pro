@@ -210,9 +210,12 @@ export const EVENT_CATEGORIES = [
   { value: "questoes", label: "Questões", color: "bg-amber" },
   { value: "flashcards", label: "Flashcards", color: "bg-sage" },
   { value: "aula_faculdade", label: "Aula da faculdade", color: "bg-foreground/60" },
+  { value: "prova_faculdade", label: "Prova da faculdade", color: "bg-rose" },
+  { value: "entrega_trabalho", label: "Entrega de trabalho", color: "bg-violet/80" },
   { value: "med_curso", label: "Cursinho / Med", color: "bg-rose" },
   { value: "outro", label: "Outro", color: "bg-muted-foreground" },
 ] as const;
+
 
 export function categoryMeta(value: string) {
   return (
