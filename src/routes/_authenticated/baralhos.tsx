@@ -3,11 +3,23 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { requireUserId, startSubjectCycle, nudgeMastery } from "@/lib/actions";
-import { useDecks, useSubjects, type AnkiDeck } from "@/lib/data";
+import {
+  requireUserId,
+  startSubjectCycle,
+  nudgeMastery,
+  nudgeMasteryFromQuestions,
+} from "@/lib/actions";
+import {
+  useDecks,
+  useDeckSessions,
+  useSubjects,
+  deckAccuracy,
+  type AnkiDeck,
+} from "@/lib/data";
 import { nextDeckInterval } from "@/lib/srs";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { formatDate, isSameDay } from "@/lib/format";
+
 
 export const Route = createFileRoute("/_authenticated/baralhos")({
   head: () => ({
