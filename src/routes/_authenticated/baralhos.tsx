@@ -281,3 +281,86 @@ function DecksPage() {
     </>
   );
 }
+
+/** Registro de sessão: rating + acertos/total opcionais (ex.: 18 de 20). */
+function DeckSessionForm({
+  deck,
+  pending,
+  onLog,
+  onRemove,
+}: {
+  deck: AnkiDeck;
+  pending: boolean;
+  onLog: (payload: {
+    cards: number;
+    good: boolean;
+    correct: number | null;
+    total: number | null;
+  }) => void;
+  onRemove: () => void;
+}) {
+  const [correct, setCorrect] = useState("");
+  const [total, setTotal] = useState("");
+
+  const submit = (good: boolean) => {
+    const totalNum = Number(total);
+    const correctNum = Number(correct);
+    const hasScore = total.trim() !== "" && totalNum > 0;
+    if (hasScore && (correct.trim() === "" || correctNum < 0 || correctNum > totalNum)) {
+      toast.error("Cartões corretos precisa ser entre 0 e o total revisado");
+      return;
+    }
+    onLog({
+      cards: hasScore ? totalNum : 0,
+      good,
+      correct: hasScore ? correctNum : null,
+      total: hasScore ? totalNum : null,
+    });
+    setCorrect("");
+    setTotal("");
+  };
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Cartões corretos">
+          <input
+            className={inputClass}
+            inputMode="numeric"
+            value={correct}
+            onChange={(e) => setCorrect(e.target.value)}
+            placeholder="18"
+            aria-label={`Cartões corretos em ${deck.name}`}
+          />
+        </Field>
+        <Field label="Total revisado">
+          <input
+            className={inputClass}
+            inputMode="numeric"
+            value={total}
+            onChange={(e) => setTotal(e.target.value)}
+            placeholder="20"
+            aria-label={`Total de cartões revisados em ${deck.name}`}
+          />
+        </Field>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Opcional — sem preencher, a sessão usa só o julgamento qualitativo.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <button className={buttonClass} disabled={pending} onClick={() => submit(true)}>
+          Revisei bem
+        </button>
+        <button className={ghostButtonClass} disabled={pending} onClick={() => submit(false)}>
+          Foi difícil
+        </button>
+        <button
+          className="ml-auto text-xs text-muted-foreground hover:text-rose"
+          onClick={onRemove}
+        >
+          Remover
+        </button>
+      </div>
+    </div>
+  );
+}
