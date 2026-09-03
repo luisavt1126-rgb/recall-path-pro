@@ -272,3 +272,21 @@ export function useDeckSessions() {
     },
   });
 }
+
+/**
+ * Taxa de acerto real de um baralho (0-100) com base nas últimas `lastN`
+ * sessões que registraram cartões corretos/total. Retorna null se não houver.
+ */
+export function deckAccuracy(
+  sessions: DeckSession[],
+  deckId: string,
+  lastN = 5,
+): number | null {
+  const rows = sessions
+    .filter((s) => s.deck_id === deckId && (s.total_cards ?? 0) > 0)
+    .slice(0, lastN);
+  if (rows.length === 0) return null;
+  const total = rows.reduce((acc, r) => acc + (r.total_cards ?? 0), 0);
+  const correct = rows.reduce((acc, r) => acc + (r.correct_cards ?? 0), 0);
+  return total > 0 ? Math.round((correct / total) * 100) : null;
+}
