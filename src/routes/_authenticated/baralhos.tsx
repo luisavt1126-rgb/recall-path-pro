@@ -49,6 +49,8 @@ function DecksPage() {
   const qc = useQueryClient();
   const { data: decks = [] } = useDecks();
   const { data: subjects = [] } = useSubjects();
+  const { data: deckSessions = [] } = useDeckSessions();
+
   const [name, setName] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [status, setStatus] = useState("novo");
