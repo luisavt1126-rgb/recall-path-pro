@@ -225,7 +225,9 @@ function DecksPage() {
           <Empty>Nenhum baralho cadastrado ainda.</Empty>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
-            {decks.map((deck) => (
+            {decks.map((deck) => {
+              const accuracy = deckAccuracy(deckSessions, deck.id);
+              return (
               <div key={deck.id} className="rounded-xl border border-border p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -236,48 +238,43 @@ function DecksPage() {
                       {Math.round(Number(deck.interval_days))}d
                     </p>
                   </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      deck.status === "reforco"
-                        ? "bg-rose/10 text-rose"
-                        : deck.status === "revisao"
-                          ? "bg-amber/10 text-amber"
-                          : "bg-brand/10 text-brand"
-                    }`}
-                  >
-                    {STATUS.find((s) => s.value === deck.status)?.label ?? deck.status}
-                  </span>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        deck.status === "reforco"
+                          ? "bg-rose/10 text-rose"
+                          : deck.status === "revisao"
+                            ? "bg-amber/10 text-amber"
+                            : "bg-brand/10 text-brand"
+                      }`}
+                    >
+                      {STATUS.find((s) => s.value === deck.status)?.label ?? deck.status}
+                    </span>
+                    {accuracy !== null && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          accuracy < 60
+                            ? "bg-rose/10 text-rose"
+                            : accuracy < 80
+                              ? "bg-amber/10 text-amber"
+                              : "bg-sage/10 text-sage"
+                        }`}
+                      >
+                        acerto {accuracy}%
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <button
-                    className={buttonClass}
-                    onClick={() => {
-                      const input = window.prompt("Quantos cartões você revisou?", "20");
-                      if (!input) return;
-                      logDeck.mutate({ deck, cards: Number(input) || 0, good: true });
-                    }}
-                  >
-                    Revisei bem
-                  </button>
-                  <button
-                    className={ghostButtonClass}
-                    onClick={() => {
-                      const input = window.prompt("Quantos cartões você revisou?", "20");
-                      if (!input) return;
-                      logDeck.mutate({ deck, cards: Number(input) || 0, good: false });
-                    }}
-                  >
-                    Foi difícil
-                  </button>
-                  <button
-                    className="ml-auto text-xs text-muted-foreground hover:text-rose"
-                    onClick={() => removeDeck.mutate(deck.id)}
-                  >
-                    Remover
-                  </button>
-                </div>
+                <DeckSessionForm
+                  deck={deck}
+                  pending={logDeck.isPending}
+                  onLog={(payload) => logDeck.mutate({ deck, ...payload })}
+                  onRemove={() => removeDeck.mutate(deck.id)}
+                />
               </div>
-            ))}
+              );
+            })}
+
           </div>
         )}
       </Panel>
