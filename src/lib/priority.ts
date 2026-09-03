@@ -144,7 +144,10 @@ export type DeckPriorityInput = {
   last_review_at: string | null;
   interval_days: number;
   status: string;
+  /** Taxa de acerto real das últimas sessões (0-100), quando registrada. */
+  accuracy?: number | null;
 };
+
 
 export type Reason = { text: string; tone: "rose" | "amber" | "violet" | "sage" };
 
