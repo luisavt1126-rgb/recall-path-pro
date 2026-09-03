@@ -78,19 +78,26 @@ function DecksPage() {
       deck,
       cards,
       good,
+      correct,
+      total,
     }: {
       deck: AnkiDeck;
       cards: number;
       good: boolean;
+      correct?: number | null;
+      total?: number | null;
     }) => {
       const userId = await requireUserId();
       const now = new Date();
       const interval = nextDeckInterval(Number(deck.interval_days), good ? "bom" : "dificil");
+      const hasScore = (total ?? 0) > 0 && correct !== null && correct !== undefined;
       const { error } = await supabase.from("deck_sessions").insert({
         user_id: userId,
         deck_id: deck.id,
         cards_reviewed: cards,
         rating: good ? "bom" : "dificil",
+        correct_cards: hasScore ? correct : null,
+        total_cards: hasScore ? total : null,
       });
       if (error) throw error;
       const { error: updateError } = await supabase
@@ -105,9 +112,16 @@ function DecksPage() {
       if (updateError) throw updateError;
       if (deck.subject_id) {
         await startSubjectCycle(deck.subject_id, now.toISOString());
-        await nudgeMastery(deck.subject_id, good ? 3 : -3);
+        if (hasScore) {
+          // taxa de acerto real puxa o domínio (80% atual / 20% sessão)
+          await nudgeMasteryFromQuestions(
+            deck.subject_id,
+            Math.round(((correct as number) / (total as number)) * 100),
+          );
+        } else {
+          await nudgeMastery(deck.subject_id, good ? 3 : -3);
+        }
       }
-
     },
     onSuccess: () => {
       qc.invalidateQueries();
@@ -115,6 +129,7 @@ function DecksPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const removeDeck = useMutation({
     mutationFn: async (id: string) => {
