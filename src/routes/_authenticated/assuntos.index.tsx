@@ -40,6 +40,54 @@ const CORE_DISCIPLINES = [
   "Medicina Preventiva",
 ] as const;
 
+/** Especialidades pré-cadastradas como assuntos raiz de cada grande área. */
+const CORE_SPECIALTIES: Record<(typeof CORE_DISCIPLINES)[number], string[]> = {
+  "Clínica Médica": [
+    "Cardiologia",
+    "Pneumologia",
+    "Gastroenterologia",
+    "Endocrinologia",
+    "Nefrologia",
+    "Neurologia",
+    "Hematologia",
+    "Reumatologia",
+    "Infectologia",
+    "Dermatologia",
+    "Psiquiatria",
+    "Geriatria",
+  ],
+  Cirurgia: [
+    "Cirurgia Geral",
+    "Cirurgia do Trauma",
+    "Urologia",
+    "Ortopedia",
+    "Cirurgia Vascular",
+    "Oftalmologia",
+    "Otorrinolaringologia",
+    "Anestesiologia",
+  ],
+  "Ginecologia e Obstetrícia": [
+    "Obstetrícia",
+    "Ginecologia",
+    "Pré-natal",
+    "Planejamento Familiar",
+  ],
+  Pediatria: [
+    "Neonatologia",
+    "Puericultura",
+    "Vacinação",
+    "Emergências Pediátricas",
+    "Doenças Infecciosas na Infância",
+  ],
+  "Medicina Preventiva": [
+    "Epidemiologia",
+    "SUS/Políticas Públicas",
+    "Bioética",
+    "Saúde da Família",
+    "Vigilância em Saúde",
+  ],
+};
+
 /** Garante que as 5 grandes áreas existam para o usuário, sem duplicar por nome. */
 function useSeedCoreDisciplines(disciplines: { name: string }[], ready: boolean) {
   const qc = useQueryClient();
@@ -66,6 +114,56 @@ function useSeedCoreDisciplines(disciplines: { name: string }[], ready: boolean)
     })();
   }, [disciplines, ready, qc]);
 }
+
+/**
+ * Cria as especialidades padrão como assuntos raiz de cada grande área,
+ * sem duplicar nomes já existentes na mesma disciplina.
+ */
+function useSeedCoreSpecialties(
+  disciplines: { id: string; name: string }[],
+  subjects: { name: string; discipline_id: string; parent_id: string | null }[],
+  ready: boolean,
+) {
+  const qc = useQueryClient();
+  const ran = useRef(false);
+
+  useEffect(() => {
+    if (!ready || ran.current) return;
+    const rows: { discipline_id: string; name: string }[] = [];
+    for (const area of CORE_DISCIPLINES) {
+      const discipline = disciplines.find(
+        (d) => d.name.trim().toLowerCase() === area.toLowerCase(),
+      );
+      if (!discipline) return; // espera as disciplinas serem criadas
+      const existing = new Set(
+        subjects
+          .filter((s) => s.discipline_id === discipline.id)
+          .map((s) => s.name.trim().toLowerCase()),
+      );
+      for (const name of CORE_SPECIALTIES[area]) {
+        if (!existing.has(name.toLowerCase())) {
+          rows.push({ discipline_id: discipline.id, name });
+        }
+      }
+    }
+    if (rows.length === 0) return;
+    ran.current = true;
+    (async () => {
+      try {
+        const userId = await requireUserId();
+        const { error } = await supabase
+          .from("subjects")
+          .insert(rows.map((r) => ({ ...r, user_id: userId, parent_id: null })));
+        if (error) throw error;
+        qc.invalidateQueries({ queryKey: ["subjects"] });
+      } catch (e) {
+        ran.current = false;
+        toast.error((e as Error).message);
+      }
+    })();
+  }, [disciplines, subjects, ready, qc]);
+}
+
 
 function SubjectsPage() {
   const qc = useQueryClient();

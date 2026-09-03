@@ -144,7 +144,10 @@ export type DeckPriorityInput = {
   last_review_at: string | null;
   interval_days: number;
   status: string;
+  /** Taxa de acerto real das últimas sessões (0-100), quando registrada. */
+  accuracy?: number | null;
 };
+
 
 export type Reason = { text: string; tone: "rose" | "amber" | "violet" | "sage" };
 
@@ -190,7 +193,22 @@ export function deckPriority(input: DeckPriorityInput) {
     reasons.push({ text: "baralho novo", tone: "sage" });
   }
 
+  // Taxa de acerto real (correct_cards/total_cards) pesa mais que os sinais
+  // temporais quando existe: quanto menor o acerto, maior a prioridade.
+  if (input.accuracy !== null && input.accuracy !== undefined) {
+    const errorPct = 100 - input.accuracy;
+    score += errorPct * 0.7;
+    if (input.accuracy < 60) {
+      reasons.push({ text: `acerto ${input.accuracy}%`, tone: "rose" });
+    } else if (input.accuracy < 80) {
+      reasons.push({ text: `acerto ${input.accuracy}%`, tone: "amber" });
+    } else {
+      reasons.push({ text: `acerto ${input.accuracy}%`, tone: "sage" });
+    }
+  }
+
   return { score: Math.round(score), level: priorityLevel(Math.round(score)), reasons };
+
 }
 
 // ---------------------------------------------------------------------------

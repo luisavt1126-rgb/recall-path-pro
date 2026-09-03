@@ -61,26 +61,32 @@ export type Database = {
       deck_sessions: {
         Row: {
           cards_reviewed: number
+          correct_cards: number | null
           deck_id: string
           id: string
           rating: string | null
           reviewed_at: string
+          total_cards: number | null
           user_id: string
         }
         Insert: {
           cards_reviewed?: number
+          correct_cards?: number | null
           deck_id: string
           id?: string
           rating?: string | null
           reviewed_at?: string
+          total_cards?: number | null
           user_id: string
         }
         Update: {
           cards_reviewed?: number
+          correct_cards?: number | null
           deck_id?: string
           id?: string
           rating?: string | null
           reviewed_at?: string
+          total_cards?: number | null
           user_id?: string
         }
         Relationships: [

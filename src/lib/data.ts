@@ -210,9 +210,12 @@ export const EVENT_CATEGORIES = [
   { value: "questoes", label: "Questões", color: "bg-amber" },
   { value: "flashcards", label: "Flashcards", color: "bg-sage" },
   { value: "aula_faculdade", label: "Aula da faculdade", color: "bg-foreground/60" },
+  { value: "prova_faculdade", label: "Prova da faculdade", color: "bg-rose" },
+  { value: "entrega_trabalho", label: "Entrega de trabalho", color: "bg-violet/80" },
   { value: "med_curso", label: "Cursinho / Med", color: "bg-rose" },
   { value: "outro", label: "Outro", color: "bg-muted-foreground" },
 ] as const;
+
 
 export function categoryMeta(value: string) {
   return (
@@ -268,4 +271,22 @@ export function useDeckSessions() {
       return data as DeckSession[];
     },
   });
+}
+
+/**
+ * Taxa de acerto real de um baralho (0-100) com base nas últimas `lastN`
+ * sessões que registraram cartões corretos/total. Retorna null se não houver.
+ */
+export function deckAccuracy(
+  sessions: DeckSession[],
+  deckId: string,
+  lastN = 5,
+): number | null {
+  const rows = sessions
+    .filter((s) => s.deck_id === deckId && (s.total_cards ?? 0) > 0)
+    .slice(0, lastN);
+  if (rows.length === 0) return null;
+  const total = rows.reduce((acc, r) => acc + (r.total_cards ?? 0), 0);
+  const correct = rows.reduce((acc, r) => acc + (r.correct_cards ?? 0), 0);
+  return total > 0 ? Math.round((correct / total) * 100) : null;
 }

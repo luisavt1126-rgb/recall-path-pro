@@ -3,11 +3,23 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { requireUserId, startSubjectCycle, nudgeMastery } from "@/lib/actions";
-import { useDecks, useSubjects, type AnkiDeck } from "@/lib/data";
+import {
+  requireUserId,
+  startSubjectCycle,
+  nudgeMastery,
+  nudgeMasteryFromQuestions,
+} from "@/lib/actions";
+import {
+  useDecks,
+  useDeckSessions,
+  useSubjects,
+  deckAccuracy,
+  type AnkiDeck,
+} from "@/lib/data";
 import { nextDeckInterval } from "@/lib/srs";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { formatDate, isSameDay } from "@/lib/format";
+
 
 export const Route = createFileRoute("/_authenticated/baralhos")({
   head: () => ({
@@ -37,6 +49,8 @@ function DecksPage() {
   const qc = useQueryClient();
   const { data: decks = [] } = useDecks();
   const { data: subjects = [] } = useSubjects();
+  const { data: deckSessions = [] } = useDeckSessions();
+
   const [name, setName] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [status, setStatus] = useState("novo");
@@ -66,19 +80,26 @@ function DecksPage() {
       deck,
       cards,
       good,
+      correct,
+      total,
     }: {
       deck: AnkiDeck;
       cards: number;
       good: boolean;
+      correct?: number | null;
+      total?: number | null;
     }) => {
       const userId = await requireUserId();
       const now = new Date();
       const interval = nextDeckInterval(Number(deck.interval_days), good ? "bom" : "dificil");
+      const hasScore = (total ?? 0) > 0 && correct !== null && correct !== undefined;
       const { error } = await supabase.from("deck_sessions").insert({
         user_id: userId,
         deck_id: deck.id,
         cards_reviewed: cards,
         rating: good ? "bom" : "dificil",
+        correct_cards: hasScore ? correct : null,
+        total_cards: hasScore ? total : null,
       });
       if (error) throw error;
       const { error: updateError } = await supabase
@@ -93,9 +114,16 @@ function DecksPage() {
       if (updateError) throw updateError;
       if (deck.subject_id) {
         await startSubjectCycle(deck.subject_id, now.toISOString());
-        await nudgeMastery(deck.subject_id, good ? 3 : -3);
+        if (hasScore) {
+          // taxa de acerto real puxa o domínio (80% atual / 20% sessão)
+          await nudgeMasteryFromQuestions(
+            deck.subject_id,
+            Math.round(((correct as number) / (total as number)) * 100),
+          );
+        } else {
+          await nudgeMastery(deck.subject_id, good ? 3 : -3);
+        }
       }
-
     },
     onSuccess: () => {
       qc.invalidateQueries();
@@ -103,6 +131,7 @@ function DecksPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const removeDeck = useMutation({
     mutationFn: async (id: string) => {
@@ -196,7 +225,9 @@ function DecksPage() {
           <Empty>Nenhum baralho cadastrado ainda.</Empty>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
-            {decks.map((deck) => (
+            {decks.map((deck) => {
+              const accuracy = deckAccuracy(deckSessions, deck.id);
+              return (
               <div key={deck.id} className="rounded-xl border border-border p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -207,51 +238,129 @@ function DecksPage() {
                       {Math.round(Number(deck.interval_days))}d
                     </p>
                   </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      deck.status === "reforco"
-                        ? "bg-rose/10 text-rose"
-                        : deck.status === "revisao"
-                          ? "bg-amber/10 text-amber"
-                          : "bg-brand/10 text-brand"
-                    }`}
-                  >
-                    {STATUS.find((s) => s.value === deck.status)?.label ?? deck.status}
-                  </span>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        deck.status === "reforco"
+                          ? "bg-rose/10 text-rose"
+                          : deck.status === "revisao"
+                            ? "bg-amber/10 text-amber"
+                            : "bg-brand/10 text-brand"
+                      }`}
+                    >
+                      {STATUS.find((s) => s.value === deck.status)?.label ?? deck.status}
+                    </span>
+                    {accuracy !== null && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          accuracy < 60
+                            ? "bg-rose/10 text-rose"
+                            : accuracy < 80
+                              ? "bg-amber/10 text-amber"
+                              : "bg-sage/10 text-sage"
+                        }`}
+                      >
+                        acerto {accuracy}%
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <button
-                    className={buttonClass}
-                    onClick={() => {
-                      const input = window.prompt("Quantos cartões você revisou?", "20");
-                      if (!input) return;
-                      logDeck.mutate({ deck, cards: Number(input) || 0, good: true });
-                    }}
-                  >
-                    Revisei bem
-                  </button>
-                  <button
-                    className={ghostButtonClass}
-                    onClick={() => {
-                      const input = window.prompt("Quantos cartões você revisou?", "20");
-                      if (!input) return;
-                      logDeck.mutate({ deck, cards: Number(input) || 0, good: false });
-                    }}
-                  >
-                    Foi difícil
-                  </button>
-                  <button
-                    className="ml-auto text-xs text-muted-foreground hover:text-rose"
-                    onClick={() => removeDeck.mutate(deck.id)}
-                  >
-                    Remover
-                  </button>
-                </div>
+                <DeckSessionForm
+                  deck={deck}
+                  pending={logDeck.isPending}
+                  onLog={(payload) => logDeck.mutate({ deck, ...payload })}
+                  onRemove={() => removeDeck.mutate(deck.id)}
+                />
               </div>
-            ))}
+              );
+            })}
+
           </div>
         )}
       </Panel>
     </>
+  );
+}
+
+/** Registro de sessão: rating + acertos/total opcionais (ex.: 18 de 20). */
+function DeckSessionForm({
+  deck,
+  pending,
+  onLog,
+  onRemove,
+}: {
+  deck: AnkiDeck;
+  pending: boolean;
+  onLog: (payload: {
+    cards: number;
+    good: boolean;
+    correct: number | null;
+    total: number | null;
+  }) => void;
+  onRemove: () => void;
+}) {
+  const [correct, setCorrect] = useState("");
+  const [total, setTotal] = useState("");
+
+  const submit = (good: boolean) => {
+    const totalNum = Number(total);
+    const correctNum = Number(correct);
+    const hasScore = total.trim() !== "" && totalNum > 0;
+    if (hasScore && (correct.trim() === "" || correctNum < 0 || correctNum > totalNum)) {
+      toast.error("Cartões corretos precisa ser entre 0 e o total revisado");
+      return;
+    }
+    onLog({
+      cards: hasScore ? totalNum : 0,
+      good,
+      correct: hasScore ? correctNum : null,
+      total: hasScore ? totalNum : null,
+    });
+    setCorrect("");
+    setTotal("");
+  };
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Cartões corretos">
+          <input
+            className={inputClass}
+            inputMode="numeric"
+            value={correct}
+            onChange={(e) => setCorrect(e.target.value)}
+            placeholder="18"
+            aria-label={`Cartões corretos em ${deck.name}`}
+          />
+        </Field>
+        <Field label="Total revisado">
+          <input
+            className={inputClass}
+            inputMode="numeric"
+            value={total}
+            onChange={(e) => setTotal(e.target.value)}
+            placeholder="20"
+            aria-label={`Total de cartões revisados em ${deck.name}`}
+          />
+        </Field>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Opcional — sem preencher, a sessão usa só o julgamento qualitativo.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <button className={buttonClass} disabled={pending} onClick={() => submit(true)}>
+          Revisei bem
+        </button>
+        <button className={ghostButtonClass} disabled={pending} onClick={() => submit(false)}>
+          Foi difícil
+        </button>
+        <button
+          className="ml-auto text-xs text-muted-foreground hover:text-rose"
+          onClick={onRemove}
+        >
+          Remover
+        </button>
+      </div>
+    </div>
   );
 }

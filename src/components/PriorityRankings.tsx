@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   EMPTY_STATS,
+  deckAccuracy,
   questionStatsBySubject,
+  useDeckSessions,
   useDecks,
   useDisciplines,
   useQuestionLogs,
@@ -38,20 +40,24 @@ function Reasons({ reasons }: { reasons: Reason[] }) {
 export function useDeckRanking(limit = 6) {
   const { data: decks = [] } = useDecks();
   const { data: subjects = [] } = useSubjects();
+  const { data: deckSessions = [] } = useDeckSessions();
   return decks
     .map((deck) => ({
       deck,
       subjectName: subjects.find((s) => s.id === deck.subject_id)?.name ?? null,
+      accuracy: deckAccuracy(deckSessions, deck.id),
       ...deckPriority({
         next_review_at: deck.next_review_at,
         last_review_at: deck.last_review_at,
         interval_days: Number(deck.interval_days),
         status: deck.status,
+        accuracy: deckAccuracy(deckSessions, deck.id),
       }),
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }
+
 
 export function useQuestionRanking(limit = 6) {
   const { data: subjects = [] } = useSubjects();
@@ -95,7 +101,7 @@ export function DeckRankingList({ limit = 6 }: { limit?: number }) {
   }
   return (
     <div className="space-y-2.5 text-sm">
-      {ranking.map(({ deck, subjectName, level, reasons }) => (
+      {ranking.map(({ deck, subjectName, level, reasons, accuracy }) => (
         <div key={deck.id} className="rounded-xl border border-border p-3">
           <div className="flex items-start justify-between gap-2">
             <p className="min-w-0 truncate font-medium">{deck.name}</p>
@@ -104,7 +110,9 @@ export function DeckRankingList({ limit = 6 }: { limit?: number }) {
           <p className="mt-1 text-xs text-muted-foreground">
             {subjectName ? `${subjectName} · ` : ""}intervalo {Number(deck.interval_days)}d
             {deck.next_review_at && ` · próxima ${formatDate(deck.next_review_at)}`}
+            {accuracy !== null && ` · acerto ${accuracy}%`}
           </p>
+
           <Reasons reasons={reasons} />
         </div>
       ))}
