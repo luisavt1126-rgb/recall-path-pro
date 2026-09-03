@@ -101,7 +101,7 @@ export function DeckRankingList({ limit = 6 }: { limit?: number }) {
   }
   return (
     <div className="space-y-2.5 text-sm">
-      {ranking.map(({ deck, subjectName, level, reasons }) => (
+      {ranking.map(({ deck, subjectName, level, reasons, accuracy }) => (
         <div key={deck.id} className="rounded-xl border border-border p-3">
           <div className="flex items-start justify-between gap-2">
             <p className="min-w-0 truncate font-medium">{deck.name}</p>
@@ -110,7 +110,9 @@ export function DeckRankingList({ limit = 6 }: { limit?: number }) {
           <p className="mt-1 text-xs text-muted-foreground">
             {subjectName ? `${subjectName} · ` : ""}intervalo {Number(deck.interval_days)}d
             {deck.next_review_at && ` · próxima ${formatDate(deck.next_review_at)}`}
+            {accuracy !== null && ` · acerto ${accuracy}%`}
           </p>
+
           <Reasons reasons={reasons} />
         </div>
       ))}
