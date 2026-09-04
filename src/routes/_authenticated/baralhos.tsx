@@ -3,12 +3,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  requireUserId,
-  startSubjectCycle,
-  nudgeMastery,
-  nudgeMasteryFromQuestions,
-} from "@/lib/actions";
+import { requireUserId, useRateDeck } from "@/lib/actions";
 import {
   useDecks,
   useDeckSessions,
@@ -16,7 +11,7 @@ import {
   deckAccuracy,
   type AnkiDeck,
 } from "@/lib/data";
-import { nextDeckInterval } from "@/lib/srs";
+import { RATINGS, RATING_LABEL, type Rating } from "@/lib/srs";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { formatDate, isSameDay } from "@/lib/format";
 
@@ -75,63 +70,7 @@ function DecksPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const logDeck = useMutation({
-    mutationFn: async ({
-      deck,
-      cards,
-      good,
-      correct,
-      total,
-    }: {
-      deck: AnkiDeck;
-      cards: number;
-      good: boolean;
-      correct?: number | null;
-      total?: number | null;
-    }) => {
-      const userId = await requireUserId();
-      const now = new Date();
-      const interval = nextDeckInterval(Number(deck.interval_days), good ? "bom" : "dificil");
-      const hasScore = (total ?? 0) > 0 && correct !== null && correct !== undefined;
-      const { error } = await supabase.from("deck_sessions").insert({
-        user_id: userId,
-        deck_id: deck.id,
-        cards_reviewed: cards,
-        rating: good ? "bom" : "dificil",
-        correct_cards: hasScore ? correct : null,
-        total_cards: hasScore ? total : null,
-      });
-      if (error) throw error;
-      const { error: updateError } = await supabase
-        .from("anki_decks")
-        .update({
-          interval_days: interval,
-          last_review_at: now.toISOString(),
-          next_review_at: new Date(now.getTime() + interval * 86_400_000).toISOString(),
-          status: good ? "revisao" : "reforco",
-        })
-        .eq("id", deck.id);
-      if (updateError) throw updateError;
-      if (deck.subject_id) {
-        await startSubjectCycle(deck.subject_id, now.toISOString());
-        if (hasScore) {
-          // taxa de acerto real puxa o domínio (80% atual / 20% sessão)
-          await nudgeMasteryFromQuestions(
-            deck.subject_id,
-            Math.round(((correct as number) / (total as number)) * 100),
-          );
-        } else {
-          await nudgeMastery(deck.subject_id, good ? 3 : -3);
-        }
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries();
-      toast.success("Sessão do baralho registrada");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
+  const rateDeck = useRateDeck();
 
   const removeDeck = useMutation({
     mutationFn: async (id: string) => {
@@ -267,8 +206,8 @@ function DecksPage() {
                 </div>
                 <DeckSessionForm
                   deck={deck}
-                  pending={logDeck.isPending}
-                  onLog={(payload) => logDeck.mutate({ deck, ...payload })}
+                  pending={rateDeck.isPending}
+                  onLog={(payload) => rateDeck.mutate({ deck, ...payload })}
                   onRemove={() => removeDeck.mutate(deck.id)}
                 />
               </div>
@@ -282,7 +221,7 @@ function DecksPage() {
   );
 }
 
-/** Registro de sessão: rating + acertos/total opcionais (ex.: 18 de 20). */
+/** Registro de sessão: 4 níveis do Anki + acertos/total opcionais (18 de 20). */
 function DeckSessionForm({
   deck,
   pending,
@@ -293,7 +232,7 @@ function DeckSessionForm({
   pending: boolean;
   onLog: (payload: {
     cards: number;
-    good: boolean;
+    rating: Rating;
     correct: number | null;
     total: number | null;
   }) => void;
@@ -302,7 +241,7 @@ function DeckSessionForm({
   const [correct, setCorrect] = useState("");
   const [total, setTotal] = useState("");
 
-  const submit = (good: boolean) => {
+  const submit = (rating: Rating) => {
     const totalNum = Number(total);
     const correctNum = Number(correct);
     const hasScore = total.trim() !== "" && totalNum > 0;
@@ -312,7 +251,7 @@ function DeckSessionForm({
     }
     onLog({
       cards: hasScore ? totalNum : 0,
-      good,
+      rating,
       correct: hasScore ? correctNum : null,
       total: hasScore ? totalNum : null,
     });
@@ -345,15 +284,19 @@ function DeckSessionForm({
         </Field>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        Opcional — sem preencher, a sessão usa só o julgamento qualitativo.
+        Opcional — sem preencher, a sessão usa só o nível escolhido.
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <button className={buttonClass} disabled={pending} onClick={() => submit(true)}>
-          Revisei bem
-        </button>
-        <button className={ghostButtonClass} disabled={pending} onClick={() => submit(false)}>
-          Foi difícil
-        </button>
+        {RATINGS.map((rating) => (
+          <button
+            key={rating}
+            className={rating === "bom" ? buttonClass : ghostButtonClass}
+            disabled={pending}
+            onClick={() => submit(rating)}
+          >
+            {RATING_LABEL[rating]}
+          </button>
+        ))}
         <button
           className="ml-auto text-xs text-muted-foreground hover:text-rose"
           onClick={onRemove}
