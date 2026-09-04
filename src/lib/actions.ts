@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { scheduleReview, type Rating, type SrsState } from "@/lib/srs";
-import type { Subject } from "@/lib/data";
+import { scheduleReview, nextDeckInterval, type Rating, type SrsState } from "@/lib/srs";
+import type { AnkiDeck, Subject } from "@/lib/data";
 
 export async function requireUserId() {
   const { data } = await supabase.auth.getUser();
@@ -239,4 +239,79 @@ export async function nudgeMastery(subjectId: string, delta: number) {
     .from("subjects")
     .update({ mastery: clampMastery(Number(subject["mastery"] ?? 0) + delta) })
     .eq("id", subjectId);
+}
+
+/**
+ * Registra uma sessão de baralho com os 4 níveis do Anki.
+ * O intervalo é recalculado pela mesma lógica de SRS (srs.ts) e o domínio do
+ * assunto vinculado é ajustado pela taxa de acerto real (80/20) quando houver
+ * pontuação, ou por um empurrão leve conforme o nível escolhido.
+ */
+export function useRateDeck() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      deck,
+      rating,
+      cards = 0,
+      correct = null,
+      total = null,
+    }: {
+      deck: AnkiDeck;
+      rating: Rating;
+      cards?: number;
+      correct?: number | null;
+      total?: number | null;
+    }) => {
+      const userId = await requireUserId();
+      const now = new Date();
+      const interval = nextDeckInterval(Number(deck.interval_days), rating);
+      const hasScore = (total ?? 0) > 0 && correct !== null && correct !== undefined;
+
+      const { error } = await supabase.from("deck_sessions").insert({
+        user_id: userId,
+        deck_id: deck.id,
+        cards_reviewed: cards || (hasScore ? (total as number) : 0),
+        rating,
+        correct_cards: hasScore ? correct : null,
+        total_cards: hasScore ? total : null,
+      });
+      if (error) throw error;
+
+      const { error: updateError } = await supabase
+        .from("anki_decks")
+        .update({
+          interval_days: interval,
+          last_review_at: now.toISOString(),
+          next_review_at: new Date(now.getTime() + interval * 86_400_000).toISOString(),
+          status: rating === "muito_dificil" || rating === "dificil" ? "reforco" : "revisao",
+        })
+        .eq("id", deck.id);
+      if (updateError) throw updateError;
+
+      if (deck.subject_id) {
+        await startSubjectCycle(deck.subject_id, now.toISOString());
+        if (hasScore) {
+          await nudgeMasteryFromQuestions(
+            deck.subject_id,
+            Math.round(((correct as number) / (total as number)) * 100),
+          );
+        } else {
+          const delta: Record<Rating, number> = {
+            muito_dificil: -6,
+            dificil: -2,
+            bom: 3,
+            facil: 5,
+          };
+          await nudgeMastery(deck.subject_id, delta[rating]);
+        }
+      }
+      return interval;
+    },
+    onSuccess: (interval) => {
+      qc.invalidateQueries();
+      toast.success(`Sessão registrada · próxima em ${interval} dia(s)`);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 }
