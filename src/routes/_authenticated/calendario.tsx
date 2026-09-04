@@ -527,45 +527,62 @@ function CalendarPage() {
       >
         {viewMode === "dia" ? (
           <div className="space-y-2 text-sm">
-            {dayCursorEvents.length === 0 && <Empty>Nenhum compromisso neste dia.</Empty>}
-            {dayCursorEvents.map((event) => {
-              const meta = categoryMeta(event.category);
-              const done = event.status === "concluido";
-              const u = URGENCY_META[dayUrgency(event.starts_at, done)];
+            {dayCursorItems.length === 0 && <Empty>Nenhum compromisso neste dia.</Empty>}
+            {dayCursorItems.map((item) => {
+              const u = URGENCY_META[dayUrgency(item.at, item.done)];
               return (
                 <div
-                  key={event.id}
-                  className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5"
+                  key={item.key}
+                  className="flex flex-wrap items-center gap-3 rounded-xl border border-border px-3 py-2.5"
                 >
-                  <span className={`h-10 w-1 shrink-0 rounded-full ${meta.color}`} />
+                  <span className={`h-10 w-1 shrink-0 rounded-full ${item.color}`} />
                   <div className="min-w-0 flex-1">
-                    <p className={`truncate font-medium ${done ? "line-through opacity-60" : ""}`}>
-                      {formatTime(event.starts_at)} · {event.title}
+                    <p className={`truncate font-medium ${item.done ? "line-through opacity-60" : ""}`}>
+                      {formatTime(item.at)} · {item.title}
                     </p>
                     <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <span className={`h-1.5 w-1.5 rounded-full ${u.dot}`} />
-                      {meta.label} · {event.duration_min} min · {done ? "concluído" : event.status}
+                      {item.label}
+                      {item.duration ? ` · ${item.duration} min` : ""}
+                      {item.kind === "event" ? ` · ${item.done ? "concluído" : "pendente"}` : ""}
                     </p>
                   </div>
-                  <div className="flex shrink-0 gap-2 text-xs">
-                    <button
-                      className="text-brand"
-                      onClick={() =>
-                        toggleStatus.mutate({
-                          id: event.id,
-                          status: done ? "pendente" : "concluido",
-                        })
-                      }
-                    >
-                      {done ? "Reabrir" : "Concluir"}
-                    </button>
-                    <button
-                      className="text-muted-foreground hover:text-rose"
-                      onClick={() => removeEvent.mutate(event.id)}
-                    >
-                      Excluir
-                    </button>
-                  </div>
+                  {item.kind === "event" && item.event ? (
+                    <div className="flex shrink-0 gap-2 text-xs">
+                      <button className="text-brand" onClick={() => startEdit(item.event!)}>
+                        Editar
+                      </button>
+                      <button
+                        className="text-brand"
+                        onClick={() =>
+                          toggleStatus.mutate({
+                            id: item.event!.id,
+                            status: item.done ? "pendente" : "concluido",
+                          })
+                        }
+                      >
+                        {item.done ? "Reabrir" : "Concluir"}
+                      </button>
+                      <button
+                        className="text-muted-foreground hover:text-rose"
+                        onClick={() => removeEvent.mutate(item.event!.id)}
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex shrink-0 flex-wrap gap-1.5">
+                      {RATINGS.map((rating) => (
+                        <button
+                          key={rating}
+                          className="rounded-lg border border-border px-2 py-1 text-[11px] font-medium hover:bg-secondary"
+                          onClick={() => rateItem(item, rating)}
+                        >
+                          {RATING_LABEL[rating]}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -586,17 +603,15 @@ function CalendarPage() {
               {monthDays.map((day) => {
                 const inMonth = day.getMonth() === monthCursor.getMonth();
                 const isToday = isSameDay(day, new Date());
-                const dayEvents = events
-                  .filter((e) => isSameDay(new Date(e.starts_at), day))
-                  .sort((a, b) => {
-                    const rank = { atrasado: 0, proximo: 1, em_dia: 2 } as const;
-                    const ra = rank[dayUrgency(a.starts_at, a.status === "concluido")];
-                    const rb = rank[dayUrgency(b.starts_at, b.status === "concluido")];
-                    return ra - rb || a.starts_at.localeCompare(b.starts_at);
-                  });
+                const dayEvents = itemsForDay(day).sort((a, b) => {
+                  const rank = { atrasado: 0, proximo: 1, em_dia: 2 } as const;
+                  const ra = rank[dayUrgency(a.at, a.done)];
+                  const rb = rank[dayUrgency(b.at, b.done)];
+                  return ra - rb || a.at.localeCompare(b.at);
+                });
                 const critical = dayEvents[0];
                 const criticalUrgency = critical
-                  ? dayUrgency(critical.starts_at, critical.status === "concluido")
+                  ? dayUrgency(critical.at, critical.done)
                   : null;
                 const heat =
                   !inMonth
@@ -647,21 +662,21 @@ function CalendarPage() {
                         <p className="text-xs text-muted-foreground">Nenhum compromisso.</p>
                       ) : (
                         <div className="space-y-1.5">
-                          {dayEvents.map((event) => {
-                            const done = event.status === "concluido";
-                            const u = URGENCY_META[dayUrgency(event.starts_at, done)];
+                          {dayEvents.map((item) => {
+                            const u = URGENCY_META[dayUrgency(item.at, item.done)];
                             return (
                               <div
-                                key={event.id}
+                                key={item.key}
                                 className="flex items-start gap-2 rounded-md border border-border bg-card p-2 text-[11px]"
                               >
                                 <span className={`mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full ${u.dot}`} />
                                 <div className="min-w-0 flex-1">
-                                  <p className={`truncate font-medium ${done ? "line-through opacity-60" : ""}`}>
-                                    {event.title}
+                                  <p className={`truncate font-medium ${item.done ? "line-through opacity-60" : ""}`}>
+                                    {item.title}
                                   </p>
                                   <p className="text-muted-foreground">
-                                    {formatTime(event.starts_at)} · {event.duration_min}min
+                                    {formatTime(item.at)}
+                                    {item.duration ? ` · ${item.duration}min` : ` · ${item.label}`}
                                   </p>
                                 </div>
                               </div>
@@ -686,9 +701,7 @@ function CalendarPage() {
         ) : (
         <div className="grid gap-3 lg:grid-cols-7">
           {days.map((day) => {
-            const dayEvents = events
-              .filter((e) => isSameDay(new Date(e.starts_at), day))
-              .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+            const dayEvents = itemsForDay(day);
             const isToday = isSameDay(day, new Date());
             return (
               <div
@@ -705,45 +718,59 @@ function CalendarPage() {
                   {dayEvents.length === 0 && (
                     <p className="text-[11px] text-muted-foreground">Livre</p>
                   )}
-                  {dayEvents.map((event) => {
-                    const meta = categoryMeta(event.category);
-                    const done = event.status === "concluido";
-                    return (
-                      <div
-                        key={event.id}
-                        className="rounded-lg border border-border p-2 text-[11px]"
-                      >
-                        <div className="flex items-start gap-1.5">
-                          <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${meta.color}`} />
-                          <p className={`flex-1 font-medium ${done ? "line-through opacity-60" : ""}`}>
-                            {event.title}
-                          </p>
-                        </div>
-                        <p className="mt-0.5 pl-3 text-muted-foreground">
-                          {formatTime(event.starts_at)} · {event.duration_min}min
+                  {dayEvents.map((item) => (
+                    <div
+                      key={item.key}
+                      className="rounded-lg border border-border p-2 text-[11px]"
+                    >
+                      <div className="flex items-start gap-1.5">
+                        <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${item.color}`} />
+                        <p className={`flex-1 font-medium ${item.done ? "line-through opacity-60" : ""}`}>
+                          {item.title}
                         </p>
-                        <div className="mt-1 flex gap-2 pl-3">
+                      </div>
+                      <p className="mt-0.5 pl-3 text-muted-foreground">
+                        {formatTime(item.at)}
+                        {item.duration ? ` · ${item.duration}min` : ` · ${item.label}`}
+                      </p>
+                      {item.kind === "event" && item.event ? (
+                        <div className="mt-1 flex flex-wrap gap-2 pl-3">
+                          <button className="text-brand" onClick={() => startEdit(item.event!)}>
+                            Editar
+                          </button>
                           <button
                             className="text-brand"
                             onClick={() =>
                               toggleStatus.mutate({
-                                id: event.id,
-                                status: done ? "pendente" : "concluido",
+                                id: item.event!.id,
+                                status: item.done ? "pendente" : "concluido",
                               })
                             }
                           >
-                            {done ? "Reabrir" : "Concluir"}
+                            {item.done ? "Reabrir" : "Concluir"}
                           </button>
                           <button
                             className="text-muted-foreground hover:text-rose"
-                            onClick={() => removeEvent.mutate(event.id)}
+                            onClick={() => removeEvent.mutate(item.event!.id)}
                           >
                             Excluir
                           </button>
                         </div>
-                      </div>
-                    );
-                  })}
+                      ) : (
+                        <div className="mt-1 flex flex-wrap gap-1 pl-3">
+                          {RATINGS.map((rating) => (
+                            <button
+                              key={rating}
+                              className="rounded border border-border px-1.5 py-0.5 hover:bg-secondary"
+                              onClick={() => rateItem(item, rating)}
+                            >
+                              {RATING_LABEL[rating]}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             );
