@@ -7,11 +7,14 @@ export const TARGET_RETENTION = 0.9;
 export type Rating = "muito_dificil" | "dificil" | "bom" | "facil";
 
 export const RATING_LABEL: Record<Rating, string> = {
-  muito_dificil: "Muito difícil",
+  muito_dificil: "Novamente",
   dificil: "Difícil",
   bom: "Bom",
   facil: "Fácil",
 };
+
+export const RATINGS: Rating[] = ["muito_dificil", "dificil", "bom", "facil"];
+
 
 export type SrsState = {
   interval_days: number;
