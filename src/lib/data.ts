@@ -290,3 +290,13 @@ export function deckAccuracy(
   const correct = rows.reduce((acc, r) => acc + (r.correct_cards ?? 0), 0);
   return total > 0 ? Math.round((correct / total) * 100) : null;
 }
+
+/**
+ * Domínio exibido de um assunto: quando ele tem subtópicos, mostra a média do
+ * domínio dos filhos diretos (apenas na exibição, sem gravar no banco).
+ */
+export function displayMastery(subject: Subject, all: Subject[]): number {
+  const children = all.filter((s) => s.parent_id === subject.id);
+  if (children.length === 0) return subject.mastery;
+  return Math.round(children.reduce((a, c) => a + c.mastery, 0) / children.length);
+}

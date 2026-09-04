@@ -7,6 +7,7 @@ import { requireUserId } from "@/lib/actions";
 import {
   EMPTY_STATS,
   questionStatsBySubject,
+  displayMastery,
   useDisciplines,
   useQuestionLogs,
   useSubjects,
@@ -168,7 +169,7 @@ function useSeedCoreSpecialties(
 function SubjectsPage() {
   const qc = useQueryClient();
   const { data: disciplines = [], isSuccess: disciplinesLoaded } = useDisciplines();
-  const { data: subjects = [] } = useSubjects();
+  const { data: subjects = [], isSuccess: subjectsLoaded } = useSubjects();
   const { data: logs = [] } = useQuestionLogs();
   const stats = questionStatsBySubject(logs);
 
@@ -178,6 +179,7 @@ function SubjectsPage() {
   const [incidence, setIncidence] = useState(3);
 
   useSeedCoreDisciplines(disciplines, disciplinesLoaded);
+  useSeedCoreSpecialties(disciplines, subjects, disciplinesLoaded && subjectsLoaded);
 
   // Somente as 5 grandes áreas ficam disponíveis para novos assuntos.
   const coreDisciplines = CORE_DISCIPLINES.map((name) =>
@@ -321,6 +323,8 @@ function SubjectsPage() {
   function SubjectRow({ subjectId, nested = false }: { subjectId: string; nested?: boolean }) {
     const subject = subjects.find((s) => s.id === subjectId)!;
     const s = stats.get(subjectId) ?? EMPTY_STATS;
+    const mastery = displayMastery(subject, subjects);
+    const hasChildren = subjects.some((c) => c.parent_id === subject.id);
     return (
       <Link
         to="/assuntos/$id"
@@ -338,11 +342,11 @@ function SubjectsPage() {
           <div className="h-1.5 w-24 overflow-hidden rounded-full bg-secondary">
             <div
               className="h-full rounded-full bg-brand"
-              style={{ width: `${subject.mastery}%` }}
+              style={{ width: `${mastery}%` }}
             />
           </div>
           <p className="text-[11px] text-muted-foreground">
-            domínio {subject.mastery}% · {subject.review_count} revisões · próxima{" "}
+            domínio {mastery}%{hasChildren ? " (média dos subtópicos)" : ""} · {subject.review_count} revisões · próxima{" "}
             {formatDate(subject.next_review_at)}
             {s.accuracy !== null && ` · questões ${s.accuracy}%`}
           </p>

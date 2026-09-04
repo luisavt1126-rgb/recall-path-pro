@@ -7,11 +7,14 @@ export const TARGET_RETENTION = 0.9;
 export type Rating = "muito_dificil" | "dificil" | "bom" | "facil";
 
 export const RATING_LABEL: Record<Rating, string> = {
-  muito_dificil: "Muito difícil",
+  muito_dificil: "Novamente",
   dificil: "Difícil",
   bom: "Bom",
   facil: "Fácil",
 };
+
+export const RATINGS: Rating[] = ["muito_dificil", "dificil", "bom", "facil"];
+
 
 export type SrsState = {
   interval_days: number;
@@ -86,12 +89,20 @@ export function scheduleReview(state: SrsState, rating: Rating) {
   };
 }
 
-export function nextDeckInterval(current: number, rating: Rating) {
+/**
+ * Próximo intervalo de um baralho, seguindo os 4 níveis do Anki:
+ * Novamente reinicia em D+1 (lapso), Difícil sobe pouco (1.2x),
+ * Bom usa o fator de facilidade e Fácil bonifica esse fator.
+ */
+export function nextDeckInterval(current: number, rating: Rating, ease = 2.5) {
+  const base = current > 0 ? current : 1;
   const factor: Record<Rating, number> = {
-    muito_dificil: 0.4,
-    dificil: 0.8,
-    bom: 2.2,
-    facil: 3,
+    muito_dificil: 0,
+    dificil: 1.2,
+    bom: ease,
+    facil: ease * 1.3,
   };
-  return clamp(Math.round((current || 1) * factor[rating]), 1, 180);
+  if (rating === "muito_dificil") return 1;
+  return clamp(Math.round(base * factor[rating]), 1, 180);
 }
+

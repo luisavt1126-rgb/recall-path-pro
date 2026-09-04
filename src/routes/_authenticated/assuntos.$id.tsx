@@ -2,13 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   EMPTY_STATS,
   questionStatsBySubject,
+  displayMastery,
   useDisciplines,
   useQuestionLogs,
   useReviews,
   useStudySessions,
   useSubjects,
 } from "@/lib/data";
-import { RATING_LABEL, type Rating } from "@/lib/srs";
+import { RATING_LABEL, RATINGS, type Rating } from "@/lib/srs";
 import { useRateSubject } from "@/lib/actions";
 import { Panel, Stat, Empty, buttonClass, ghostButtonClass } from "@/components/bits";
 import { PrepChecklist } from "@/components/SubjectPrep";
@@ -29,8 +30,6 @@ export const Route = createFileRoute("/_authenticated/assuntos/$id")({
   component: SubjectDetail,
 });
 
-const RATINGS: Rating[] = ["muito_dificil", "dificil", "bom", "facil"];
-
 function SubjectDetail() {
   const { id } = Route.useParams();
   const { data: subjects = [] } = useSubjects();
@@ -43,6 +42,8 @@ function SubjectDetail() {
   const subject = subjects.find((s) => s.id === id);
   if (!subject) return <Empty>Assunto não encontrado.</Empty>;
 
+  const mastery = displayMastery(subject, subjects);
+  const childCount = subjects.filter((s) => s.parent_id === subject.id).length;
   const discipline = disciplines.find((d) => d.id === subject.discipline_id);
   const stats = questionStatsBySubject(logs).get(id) ?? EMPTY_STATS;
   const subjectSessions = sessions.filter((s) => s.subject_id === id);
@@ -75,7 +76,13 @@ function SubjectDetail() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Stat label="Domínio" value={`${subject.mastery}%`} progress={subject.mastery} tone="brand" />
+        <Stat
+          label="Domínio"
+          value={`${mastery}%`}
+          progress={mastery}
+          tone="brand"
+          {...(childCount > 0 ? { hint: `média de ${childCount} subtópicos` } : {})}
+        />
         <Stat label="Tempo total" value={formatHours(totalMinutes)} hint={`${subjectSessions.length} sessões`} />
         <Stat
           label="Questões"
