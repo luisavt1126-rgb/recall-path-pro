@@ -71,6 +71,30 @@ function CalendarPage() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState("19:00");
   const [duration, setDuration] = useState("60");
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const resetForm = () => {
+    setEditingId(null);
+    setTitle("");
+    setCategory("estudar");
+    setSubjectId("");
+    setDate(new Date().toISOString().slice(0, 10));
+    setTime("19:00");
+    setDuration("60");
+  };
+
+  const startEdit = (event: AgendaEvent) => {
+    const at = new Date(event.starts_at);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    setEditingId(event.id);
+    setTitle(event.title);
+    setCategory(event.category);
+    setSubjectId(event.subject_id ?? "");
+    setDate(`${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`);
+    setTime(`${pad(at.getHours())}:${pad(at.getMinutes())}`);
+    setDuration(String(event.duration_min));
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const [planStart, setPlanStart] = useState(new Date().toISOString().slice(0, 10));
   const [planDays, setPlanDays] = useState<number[]>([1, 2, 3, 4, 5]);
@@ -151,24 +175,30 @@ function CalendarPage() {
   };
 
 
-  const createEvent = useMutation({
+  const saveEvent = useMutation({
     mutationFn: async () => {
-      const userId = await requireUserId();
       const startsAt = new Date(`${date}T${time}:00`);
-      const { error } = await supabase.from("events").insert({
-        user_id: userId,
+      const payload = {
         title: title.trim(),
         category,
         subject_id: subjectId || null,
         starts_at: startsAt.toISOString(),
         duration_min: Number(duration),
-      });
+      };
+      if (editingId) {
+        const { error } = await supabase.from("events").update(payload).eq("id", editingId);
+        if (error) throw error;
+        return true;
+      }
+      const userId = await requireUserId();
+      const { error } = await supabase.from("events").insert({ ...payload, user_id: userId });
       if (error) throw error;
+      return false;
     },
-    onSuccess: () => {
-      setTitle("");
+    onSuccess: (edited) => {
+      resetForm();
       qc.invalidateQueries();
-      toast.success("Compromisso adicionado");
+      toast.success(edited ? "Compromisso atualizado" : "Compromisso adicionado");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -345,12 +375,12 @@ function CalendarPage() {
         </div>
       </Panel>
 
-      <Panel title="Novo compromisso">
+      <Panel title={editingId ? "Editar compromisso" : "Novo compromisso"}>
 
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (title.trim()) createEvent.mutate();
+            if (title.trim()) saveEvent.mutate();
           }}
           className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6"
         >
@@ -417,8 +447,15 @@ function CalendarPage() {
               />
             </Field>
           </div>
-          <div className="lg:col-span-6">
-            <button className={buttonClass}>Adicionar à agenda</button>
+          <div className="flex items-center gap-3 lg:col-span-6">
+            <button className={buttonClass} disabled={saveEvent.isPending}>
+              {editingId ? "Salvar alterações" : "Adicionar à agenda"}
+            </button>
+            {editingId && (
+              <button type="button" className={ghostButtonClass} onClick={resetForm}>
+                Cancelar
+              </button>
+            )}
           </div>
         </form>
       </Panel>
