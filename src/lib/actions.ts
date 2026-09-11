@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { scheduleReview, nextDeckInterval, type Rating, type SrsState } from "@/lib/srs";
+import { scheduleReview, nextDeckInterval, RATING_LABEL, type Rating, type SrsState } from "@/lib/srs";
 import type { AnkiDeck, Subject } from "@/lib/data";
 
 export async function requireUserId() {
@@ -306,11 +306,13 @@ export function useRateDeck() {
           await nudgeMastery(deck.subject_id, delta[rating]);
         }
       }
-      return interval;
+      return { interval, rating };
     },
-    onSuccess: (interval) => {
+    onSuccess: ({ interval, rating }) => {
       qc.invalidateQueries();
-      toast.success(`Sessão registrada · próxima em ${interval} dia(s)`);
+      toast.success(
+        `Sessão registrada · classificado como ${RATING_LABEL[rating]} · próxima em ${interval} dia(s)`,
+      );
     },
     onError: (error: Error) => toast.error(error.message),
   });

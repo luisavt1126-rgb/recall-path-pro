@@ -221,7 +221,19 @@ function DecksPage() {
   );
 }
 
-/** Registro de sessão: 4 níveis do Anki + acertos/total opcionais (18 de 20). */
+/** Converte a taxa de acerto (%) no rating Anki equivalente. */
+export function ratingFromAccuracy(accuracyPct: number): Rating {
+  if (accuracyPct >= 90) return "facil";
+  if (accuracyPct >= 80) return "bom";
+  if (accuracyPct >= 60) return "dificil";
+  return "muito_dificil";
+}
+
+/**
+ * Registro de sessão: o rating é calculado automaticamente a partir de
+ * "Cartões corretos / Total revisado" (≥90% Fácil, 80–89% Bom, 60–79% Difícil,
+ * <60% Novamente). Há um modo manual opcional com os 4 níveis do Anki.
+ */
 function DeckSessionForm({
   deck,
   pending,
@@ -240,8 +252,26 @@ function DeckSessionForm({
 }) {
   const [correct, setCorrect] = useState("");
   const [total, setTotal] = useState("");
+  const [manual, setManual] = useState(false);
 
-  const submit = (rating: Rating) => {
+  const submitAuto = () => {
+    const totalNum = Number(total);
+    const correctNum = Number(correct);
+    if (total.trim() === "" || totalNum <= 0) {
+      toast.error("Informe o total de cartões revisados");
+      return;
+    }
+    if (correct.trim() === "" || correctNum < 0 || correctNum > totalNum) {
+      toast.error("Cartões corretos precisa ser entre 0 e o total revisado");
+      return;
+    }
+    const rating = ratingFromAccuracy(Math.round((correctNum / totalNum) * 100));
+    onLog({ cards: totalNum, rating, correct: correctNum, total: totalNum });
+    setCorrect("");
+    setTotal("");
+  };
+
+  const submitManual = (rating: Rating) => {
     const totalNum = Number(total);
     const correctNum = Number(correct);
     const hasScore = total.trim() !== "" && totalNum > 0;
@@ -283,27 +313,57 @@ function DeckSessionForm({
           />
         </Field>
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        Opcional — sem preencher, a sessão usa só o nível escolhido.
-      </p>
-      <div className="flex flex-wrap items-center gap-2">
-        {RATINGS.map((rating) => (
+      {!manual ? (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <button className={buttonClass} disabled={pending} onClick={submitAuto}>
+              Registrar sessão
+            </button>
+            <button
+              className="ml-auto text-xs text-muted-foreground hover:text-rose"
+              onClick={onRemove}
+            >
+              Remover
+            </button>
+          </div>
           <button
-            key={rating}
-            className={rating === "bom" ? buttonClass : ghostButtonClass}
-            disabled={pending}
-            onClick={() => submit(rating)}
+            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            onClick={() => setManual(true)}
           >
-            {RATING_LABEL[rating]}
+            Não sei o número — avaliar manualmente
           </button>
-        ))}
-        <button
-          className="ml-auto text-xs text-muted-foreground hover:text-rose"
-          onClick={onRemove}
-        >
-          Remover
-        </button>
-      </div>
+        </>
+      ) : (
+        <>
+          <p className="text-[11px] text-muted-foreground">
+            Avaliação manual — os campos numéricos são opcionais aqui.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {RATINGS.map((rating) => (
+              <button
+                key={rating}
+                className={rating === "bom" ? buttonClass : ghostButtonClass}
+                disabled={pending}
+                onClick={() => submitManual(rating)}
+              >
+                {RATING_LABEL[rating]}
+              </button>
+            ))}
+            <button
+              className="ml-auto text-xs text-muted-foreground hover:text-rose"
+              onClick={onRemove}
+            >
+              Remover
+            </button>
+          </div>
+          <button
+            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            onClick={() => setManual(false)}
+          >
+            Voltar ao registro por acertos
+          </button>
+        </>
+      )}
     </div>
   );
 }
