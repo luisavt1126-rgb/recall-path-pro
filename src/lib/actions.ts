@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { scheduleReview, nextDeckInterval, type Rating, type SrsState } from "@/lib/srs";
+import { scheduleReview, nextDeckInterval, RATING_LABEL, type Rating, type SrsState } from "@/lib/srs";
 import type { AnkiDeck, Subject } from "@/lib/data";
 
 export async function requireUserId() {
