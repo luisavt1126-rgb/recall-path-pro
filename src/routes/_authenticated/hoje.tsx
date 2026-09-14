@@ -11,11 +11,14 @@ import {
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import {
   useDecks,
+  useDeckSessions,
   useEvents,
   useProfile,
   useQuestionLogs,
   useStudySessions,
   useSubjects,
+  useReviews,
+  useTaskCompletions,
   questionStatsBySubject,
   EMPTY_STATS,
   categoryMeta,
@@ -24,6 +27,8 @@ import { questionPriority } from "@/lib/priority";
 import { Panel, Stat, Empty } from "@/components/bits";
 import { PriorityRankings } from "@/components/PriorityRankings";
 import { FlashcardStreak } from "@/components/FlashcardStreak";
+import { StudyInsights } from "@/components/StudyInsights";
+import { clearReviewStreak, currentStudyStreak } from "@/lib/study-intelligence";
 
 import {
   addDays,
@@ -58,6 +63,9 @@ function Dashboard() {
   const { data: logs = [] } = useQuestionLogs();
   const { data: decks = [] } = useDecks();
   const { data: events = [] } = useEvents();
+  const { data: reviews = [] } = useReviews();
+  const { data: deckSessions = [] } = useDeckSessions();
+  const { data: completions = [] } = useTaskCompletions();
 
   const today = new Date();
   const weekStart = startOfWeek(today);
@@ -102,6 +110,8 @@ function Dashboard() {
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 
   const recommendations = recommendDecks(ranked, decks, today, 4);
+  const studyStreak = currentStudyStreak(sessions, logs, reviews, deckSessions);
+  const reviewStreak = clearReviewStreak(completions);
 
   const createDeck = useMutation({
     mutationFn: async (rec: DeckRecommendation) => {
@@ -168,6 +178,11 @@ function Dashboard() {
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <Stat label="Sequência de estudos" value={`🔥 ${studyStreak} dia${studyStreak === 1 ? "" : "s"}`} hint="qualquer atividade registrada" />
+        <Stat label="Sem revisão atrasada" value={`✓ ${reviewStreak} dia${reviewStreak === 1 ? "" : "s"}`} hint="dias encerrados com tudo em dia" tone="brand" />
+      </div>
+
       <div className="grid gap-5">
         <Panel
           title="Agenda de hoje"
@@ -220,6 +235,8 @@ function Dashboard() {
           <FlashcardStreak />
         </Panel>
       </div>
+
+      <StudyInsights />
 
 
       <div className="grid gap-5 lg:grid-cols-3">
