@@ -11,6 +11,7 @@ export type Review = Tables["reviews"]["Row"];
 export type QuestionLog = Tables["question_logs"]["Row"];
 export type AnkiDeck = Tables["anki_decks"]["Row"];
 export type DeckSession = Tables["deck_sessions"]["Row"];
+export type TaskCompletion = Tables["task_completions"]["Row"];
 export type AgendaEvent = Tables["events"]["Row"];
 export type Exam = Tables["exams"]["Row"];
 
@@ -269,6 +270,21 @@ export function useDeckSessions() {
         .limit(2000);
       if (error) throw error;
       return data as DeckSession[];
+    },
+  });
+}
+
+export function useTaskCompletions() {
+  return useQuery({
+    queryKey: ["task_completions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("task_completions")
+        .select("*")
+        .order("completed_on", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return data as TaskCompletion[];
     },
   });
 }

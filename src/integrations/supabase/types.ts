@@ -16,36 +16,48 @@ export type Database = {
     Tables: {
       anki_decks: {
         Row: {
+          anki_name: string | null
+          cards_due: number | null
           created_at: string
           id: string
           interval_days: number
           last_review_at: string | null
+          last_synced_at: string | null
           name: string
           next_review_at: string | null
           status: string
           subject_id: string | null
+          sync_source: string | null
           user_id: string
         }
         Insert: {
+          anki_name?: string | null
+          cards_due?: number | null
           created_at?: string
           id?: string
           interval_days?: number
           last_review_at?: string | null
+          last_synced_at?: string | null
           name: string
           next_review_at?: string | null
           status?: string
           subject_id?: string | null
+          sync_source?: string | null
           user_id: string
         }
         Update: {
+          anki_name?: string | null
+          cards_due?: number | null
           created_at?: string
           id?: string
           interval_days?: number
           last_review_at?: string | null
+          last_synced_at?: string | null
           name?: string
           next_review_at?: string | null
           status?: string
           subject_id?: string | null
+          sync_source?: string | null
           user_id?: string
         }
         Relationships: [
@@ -556,6 +568,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      task_completions: {
+        Row: {
+          completed_on: string
+          created_at: string
+          id: string
+          task_key: string
+          user_id: string
+        }
+        Insert: {
+          completed_on?: string
+          created_at?: string
+          id?: string
+          task_key: string
+          user_id: string
+        }
+        Update: {
+          completed_on?: string
+          created_at?: string
+          id?: string
+          task_key?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
