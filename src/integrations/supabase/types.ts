@@ -482,6 +482,77 @@ export type Database = {
           },
         ]
       }
+      subject_priority_snapshots: {
+        Row: {
+          calculated_at: string
+          engine_version: string
+          error_score: number
+          historical_accuracy: number | null
+          historical_questions: number
+          id: string
+          knowledge_state: string
+          overdue_score: number
+          priority_score: number
+          question_score: number
+          reason: string
+          recent_accuracy: number | null
+          recent_questions: number
+          sample_confidence: number
+          sample_is_estimated: boolean
+          stability_score: number
+          subject_id: string
+          user_id: string
+        }
+        Insert: {
+          calculated_at?: string
+          engine_version: string
+          error_score?: number
+          historical_accuracy?: number | null
+          historical_questions?: number
+          id?: string
+          knowledge_state?: string
+          overdue_score?: number
+          priority_score?: number
+          question_score?: number
+          reason?: string
+          recent_accuracy?: number | null
+          recent_questions?: number
+          sample_confidence?: number
+          sample_is_estimated?: boolean
+          stability_score?: number
+          subject_id: string
+          user_id: string
+        }
+        Update: {
+          calculated_at?: string
+          engine_version?: string
+          error_score?: number
+          historical_accuracy?: number | null
+          historical_questions?: number
+          id?: string
+          knowledge_state?: string
+          overdue_score?: number
+          priority_score?: number
+          question_score?: number
+          reason?: string
+          recent_accuracy?: number | null
+          recent_questions?: number
+          sample_confidence?: number
+          sample_is_estimated?: boolean
+          stability_score?: number
+          subject_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subject_priority_snapshots_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subjects: {
         Row: {
           created_at: string
