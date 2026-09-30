@@ -182,7 +182,10 @@ function SubjectsPage() {
     summary_ready_at: false,
     deck_ready_at: false,
   });
-  const [studiedToday, setStudiedToday] = useState(false);
+  const [questionsDone, setQuestionsDone] = useState(false);
+  const [questionsTotal, setQuestionsTotal] = useState("");
+  const [questionsCorrect, setQuestionsCorrect] = useState("");
+  const [questionsMinutes, setQuestionsMinutes] = useState("");
 
   useSeedCoreDisciplines(disciplines, disciplinesLoaded);
   useSeedCoreSpecialties(disciplines, subjects, disciplinesLoaded && subjectsLoaded);
@@ -206,14 +209,39 @@ function SubjectsPage() {
           video_watched_at: prep.video_watched_at ? now : null,
           summary_ready_at: prep.summary_ready_at ? now : null,
           deck_ready_at: prep.deck_ready_at ? now : null,
-          last_studied_at: studiedToday ? now : null,
         })
         .select("id")
         .single();
       if (error) throw error;
       const id = data.id;
 
-      if (prep.video_watched_at || prep.summary_ready_at || prep.deck_ready_at || studiedToday) {
+      const hasContact =
+        prep.video_watched_at || prep.summary_ready_at || prep.deck_ready_at || questionsDone;
+
+      if (questionsDone) {
+        const { error: questionsError } = await supabase.from("question_logs").insert({
+          user_id: userId,
+          subject_id: id,
+          discipline_id: disciplineId,
+          total: Number(questionsTotal),
+          correct: Number(questionsCorrect),
+        });
+        if (questionsError) throw questionsError;
+
+        const minutes = Number(questionsMinutes);
+        if (Number.isFinite(minutes) && minutes > 0) {
+          const { error: sessionError } = await supabase.from("study_sessions").insert({
+            user_id: userId,
+            subject_id: id,
+            activity_type: "questoes",
+            minutes,
+            started_at: now,
+          });
+          if (sessionError) throw sessionError;
+        }
+      }
+
+      if (hasContact) {
         await startSubjectCycle(id, now);
       }
 
@@ -227,7 +255,10 @@ function SubjectsPage() {
       setSubjectName("");
       setParentId("");
       setPrep({ video_watched_at: false, summary_ready_at: false, deck_ready_at: false });
-      setStudiedToday(false);
+      setQuestionsDone(false);
+      setQuestionsTotal("");
+      setQuestionsCorrect("");
+      setQuestionsMinutes("");
       qc.invalidateQueries();
       toast.success("Assunto criado");
     },
@@ -252,7 +283,16 @@ function SubjectsPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (subjectName.trim() && disciplineId) addSubject.mutate();
+              if (!subjectName.trim() || !disciplineId) return;
+              if (questionsDone) {
+                const t = Number(questionsTotal);
+                const c = Number(questionsCorrect);
+                if (t <= 0 || c < 0 || c > t) {
+                  toast.error("Confira as questões: total > 0 e acertos entre 0 e o total");
+                  return;
+                }
+              }
+              addSubject.mutate();
             }}
             className="grid gap-3 sm:grid-cols-2"
           >
@@ -315,16 +355,46 @@ function SubjectsPage() {
                     </span>
                   </label>
                 ))}
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={studiedToday}
-                    onChange={(e) => setStudiedToday(e.target.checked)}
-                    className="h-4 w-4 accent-[var(--brand)]"
-                  />
-                  <span>📚 Já estudei hoje</span>
-                </label>
               </div>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={questionsDone}
+                  onChange={(e) => setQuestionsDone(e.target.checked)}
+                  className="h-4 w-4 accent-[var(--brand)]"
+                />
+                <span>❓ Fiz questões no primeiro contato</span>
+              </label>
+              {questionsDone && (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <input
+                    className={inputClass}
+                    inputMode="numeric"
+                    placeholder="Quantas questões fiz?"
+                    value={questionsTotal}
+                    onChange={(e) => setQuestionsTotal(e.target.value)}
+                    aria-label="Quantas questões fiz"
+                  />
+                  <input
+                    className={inputClass}
+                    inputMode="numeric"
+                    placeholder="Quantas acertei?"
+                    value={questionsCorrect}
+                    onChange={(e) => setQuestionsCorrect(e.target.value)}
+                    aria-label="Quantas questões acertei"
+                  />
+                  <input
+                    className={`${inputClass} sm:col-span-2`}
+                    inputMode="numeric"
+                    placeholder="Tempo (min) — opcional"
+                    value={questionsMinutes}
+                    onChange={(e) => setQuestionsMinutes(e.target.value)}
+                    aria-label="Tempo em minutos (opcional)"
+                  />
+                </div>
+              )}
             </div>
             <div className="sm:col-span-2">
               <button className={buttonClass}>Adicionar assunto</button>
