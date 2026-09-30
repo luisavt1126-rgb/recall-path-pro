@@ -37,6 +37,7 @@ const NAV = [
 const MOBILE_NAV = [
   { to: "/hoje", label: "Hoje", icon: LayoutGrid },
   { to: "/assuntos", label: "Assuntos", icon: BookOpen },
+  { to: "/erros", label: "Erros", icon: AlertTriangle },
   { to: "/calendario", label: "Agenda", icon: CalendarDays },
   { to: "/provas", label: "Provas", icon: GraduationCap },
   { to: "/temporizador", label: "Timer", icon: Timer },
