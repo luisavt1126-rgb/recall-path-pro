@@ -45,6 +45,12 @@ export type RawDeckSession = {
   reviewedAt: string;
 };
 
+export type RawQuestionError = {
+  createdAt: string;
+  errorCount: number;
+  reason: string | null;
+};
+
 const RATING_VALUES: ReadonlySet<string> = new Set([
   "muito_dificil",
   "dificil",
@@ -120,6 +126,7 @@ export function buildPriorityEngineInput(params: {
   studySessions: RawStudySession[];
   decks: RawDeck[];
   deckSessions: RawDeckSession[];
+  questionErrors: RawQuestionError[];
   now: Date;
 }): PriorityEngineInput {
   const questionBlocks: QuestionBlock[] = params.questionLogs.map((q) => ({
@@ -144,6 +151,11 @@ export function buildPriorityEngineInput(params: {
     questionBlocks,
     subjectReviews,
     deckSessions,
+    manualErrors: params.questionErrors.map((e) => ({
+      createdAt: e.createdAt,
+      errorCount: e.errorCount,
+      reason: e.reason,
+    })),
     nextReviewAt: computeEffectiveNextReviewAt(params.subject.nextReviewAt, params.decks, params.now),
     lastContactAt: computeLastContactAt(
       params.subject,

@@ -8,7 +8,7 @@
 // que continuam ativos. `mastery`, `exam_incidence` e os campos SRS ficam de
 // fora do score por decisão de projeto (ver .lovable/plan).
 
-export const ENGINE_VERSION = "1.0.0";
+export const ENGINE_VERSION = "1.1.0";
 
 export type KnowledgeState =
   | "NEW"
@@ -39,11 +39,19 @@ export type DeckSession = {
   reviewedAt: string;
 };
 
+/** Erro anotado no caderno de erros (question_errors). */
+export type ManualError = {
+  createdAt: string;
+  errorCount: number;
+  reason: string | null;
+};
+
 export type PriorityEngineInput = {
   now: Date;
   questionBlocks: QuestionBlock[];
   subjectReviews: SubjectReview[];
   deckSessions: DeckSession[];
+  manualErrors: ManualError[];
   /**
    * Vencimento efetivo: o maior risco entre o vencimento do próprio assunto e
    * os baralhos vinculados vencidos (cabe ao chamador calcular e informar).
@@ -104,6 +112,7 @@ export const ERROR_WEIGHT_VOLUME = 0.6;
 export const ERROR_WEIGHT_RECURRENCE = 0.4;
 export const ERROR_RECURRENCE_ACC_THRESHOLD = 70;
 export const ERROR_RECURRENCE_BLOCKS = 3;
+export const ERROR_MANUAL_WINDOW_DAYS = 30;
 
 /** Componente de estabilidade/tendência. */
 export const STABILITY_WEIGHT_TREND = 0.7;
@@ -313,11 +322,37 @@ function questionScore(
   return round2(COMPONENT_MAX.question * (rawGap / 100) * confidence);
 }
 
-function errorScore(recentErrors: number, recurrence: number): number {
+type ErrorInfo = {
+  score: number;
+  manualRecentErrors: number;
+  manualEntries: number;
+};
+
+function errorScore(
+  recentErrors: number,
+  recurrence: number,
+  manualErrors: ManualError[],
+  now: Date,
+): ErrorInfo {
+  const nowMs = now.getTime();
+  const manualRecentErrors = manualErrors
+    .filter((e) => new Date(e.createdAt).getTime() > nowMs - ERROR_MANUAL_WINDOW_DAYS * DAY_MS)
+    .reduce((sum, e) => sum + e.errorCount, 0);
+  const manualEntries = manualErrors.length;
+
+  const volumeErrors = recentErrors + manualRecentErrors;
   const volume =
-    COMPONENT_MAX.error * ERROR_WEIGHT_VOLUME * Math.min(1, recentErrors / ERROR_VOLUME_CAP);
-  const recur = COMPONENT_MAX.error * ERROR_WEIGHT_RECURRENCE * recurrence;
-  return round2(volume + recur);
+    COMPONENT_MAX.error * ERROR_WEIGHT_VOLUME * Math.min(1, volumeErrors / ERROR_VOLUME_CAP);
+
+  const manualRecurrence = Math.min(1, manualEntries / ERROR_RECURRENCE_BLOCKS);
+  const effectiveRecurrence = Math.max(recurrence, manualRecurrence);
+  const recur = COMPONENT_MAX.error * ERROR_WEIGHT_RECURRENCE * effectiveRecurrence;
+
+  return {
+    score: round2(volume + recur),
+    manualRecentErrors,
+    manualEntries,
+  };
 }
 
 function stabilityScore(
@@ -343,6 +378,7 @@ type StateContext = {
   historicalAccuracy: number | null;
   recentErrors: number;
   recurrence: number;
+  manualEntries: number;
   hardRatio: number;
   overdueScore: number;
 };
@@ -356,6 +392,7 @@ function determineState(ctx: StateContext): KnowledgeState {
     historicalAccuracy,
     recentErrors,
     recurrence,
+    manualEntries,
     hardRatio,
     overdueScore,
   } = ctx;
@@ -400,7 +437,7 @@ function determineState(ctx: StateContext): KnowledgeState {
 
   const lowConfidence = recentQuestions > 0 && recentQuestions < FRAGILE_MIN_SAMPLE;
   const recentWeak = recentAccuracy !== null && recentAccuracy < FRAGILE_MAX_ACC;
-  const recurringErrors = recurrence > 0 || recentErrors > 0;
+  const recurringErrors = recurrence > 0 || recentErrors > 0 || manualEntries > 0;
   const relevantOverdue = overdueScore >= FRAGILE_OVERDUE_MIN;
 
   if (lowConfidence || recentWeak || recurringErrors || relevantOverdue) {
@@ -418,6 +455,7 @@ type ReasonContext = {
   drop: number;
   recentErrors: number;
   recurrence: number;
+  manualEntries: number;
   daysOverdue: number;
 };
 
@@ -437,6 +475,9 @@ function buildReason(state: KnowledgeState, ctx: ReasonContext): string {
       }
       if (ctx.recurrence > 0 || ctx.recentErrors > 0) {
         return `${ctx.recentErrors} erros recentes — padrão de recorrência detectado.`;
+      }
+      if (ctx.manualEntries > 0) {
+        return `${ctx.manualEntries} erro(s) no caderno de erros — reforço recomendado.`;
       }
       if (ctx.daysOverdue > 0) {
         return `${Math.floor(ctx.daysOverdue)} dias de atraso na revisão.`;
@@ -462,12 +503,12 @@ export function computePrioritySnapshot(input: PriorityEngineInput): PrioritySna
   const question = questionScore(sample.recentAccuracy, sample.recentQuestions, sample.sampleConfidence);
   const overdue = overdueInfo(input.now, input.nextReviewAt, input.lastContactAt);
   const recurrence = recurrenceRatio(input.questionBlocks);
-  const error = errorScore(sample.recentErrors, recurrence);
+  const error = errorScore(sample.recentErrors, recurrence, input.manualErrors, input.now);
   const hard = hardRatingRatio(input.subjectReviews, input.deckSessions);
   const stability = stabilityScore(sample.historicalAccuracy, sample.recentAccuracy, hard);
 
   const priorityScore = clamp(
-    Math.round(question + overdue.score + error + stability),
+    Math.round(question + overdue.score + error.score + stability),
     0,
     100,
   );
@@ -478,7 +519,8 @@ export function computePrioritySnapshot(input: PriorityEngineInput): PrioritySna
     sample.recentQuestions > 0 ||
     sample.historicalQuestions > 0 ||
     input.subjectReviews.length > 0 ||
-    input.deckSessions.length > 0;
+    input.deckSessions.length > 0 ||
+    input.manualErrors.length > 0;
 
   const knowledgeState = determineState({
     started,
@@ -488,6 +530,7 @@ export function computePrioritySnapshot(input: PriorityEngineInput): PrioritySna
     historicalAccuracy: sample.historicalAccuracy,
     recentErrors: sample.recentErrors,
     recurrence,
+    manualEntries: error.manualEntries,
     hardRatio: hard,
     overdueScore: overdue.score,
   });
@@ -505,6 +548,7 @@ export function computePrioritySnapshot(input: PriorityEngineInput): PrioritySna
     drop,
     recentErrors: sample.recentErrors,
     recurrence,
+    manualEntries: error.manualEntries,
     daysOverdue: overdue.daysOverdue,
   });
 
@@ -514,7 +558,7 @@ export function computePrioritySnapshot(input: PriorityEngineInput): PrioritySna
     reason,
     questionScore: question,
     overdueScore: overdue.score,
-    errorScore: error,
+    errorScore: error.score,
     stabilityScore: stability,
     recentQuestions: sample.recentQuestions,
     recentAccuracy: sample.recentAccuracy,

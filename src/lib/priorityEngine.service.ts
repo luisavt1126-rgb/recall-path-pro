@@ -12,6 +12,7 @@ import {
   buildPriorityEngineInput,
   type RawDeck,
   type RawDeckSession,
+  type RawQuestionError,
   type RawQuestionLog,
   type RawReview,
   type RawStudySession,
@@ -76,6 +77,12 @@ export async function recalculateSubjectPriority(
     deckSessionRows = data ?? [];
   }
 
+  const { data: questionErrors, error: questionErrorsError } = await supabase
+    .from("question_errors")
+    .select("*")
+    .eq("subject_id", subjectId);
+  if (questionErrorsError) throw questionErrorsError;
+
   const rawSubject: RawSubjectContact = {
     nextReviewAt: subject.next_review_at,
     lastStudiedAt: subject.last_studied_at,
@@ -99,6 +106,9 @@ export async function recalculateSubjectPriority(
     decks: (decks ?? []).map((d): RawDeck => ({ nextReviewAt: d.next_review_at })),
     deckSessions: deckSessionRows.map(
       (ds): RawDeckSession => ({ rating: ds.rating, reviewedAt: ds.reviewed_at }),
+    ),
+    questionErrors: (questionErrors ?? []).map(
+      (e): RawQuestionError => ({ createdAt: e.created_at, errorCount: e.error_count, reason: e.reason }),
     ),
     now,
   });

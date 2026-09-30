@@ -5,6 +5,7 @@ import {
   sampleConfidence,
   ENGINE_VERSION,
   DAY_MS,
+  type ManualError,
   type PriorityEngineInput,
   type QuestionBlock,
 } from "./priorityEngine";
@@ -19,6 +20,7 @@ function input(partial: Partial<PriorityEngineInput> = {}): PriorityEngineInput 
     questionBlocks: partial.questionBlocks ?? [],
     subjectReviews: partial.subjectReviews ?? [],
     deckSessions: partial.deckSessions ?? [],
+    manualErrors: partial.manualErrors ?? [],
     nextReviewAt: partial.nextReviewAt ?? null,
     lastContactAt: partial.lastContactAt ?? null,
   };
@@ -237,5 +239,39 @@ describe("componente de erros", () => {
       input({ questionBlocks: [q(5, 30, 20), q(90, 20, 18)] }),
     );
     strictEqual(r.errorScore, 20);
+  });
+});
+
+describe("caderno de erros (manualErrors)", () => {
+  it("erro recente soma volume + recorrência", () => {
+    const manualErrors: ManualError[] = [
+      { createdAt: ago(5), errorCount: 5, reason: "não sabia o conteúdo" },
+    ];
+    const r = computePrioritySnapshot(input({ manualErrors }));
+    strictEqual(r.errorScore, 10.83);
+  });
+
+  it("3+ erros no caderno = recorrência máxima e estado FRAGILE", () => {
+    const manualErrors: ManualError[] = [
+      { createdAt: ago(2), errorCount: 1, reason: "chute" },
+      { createdAt: ago(3), errorCount: 1, reason: "chute" },
+      { createdAt: ago(4), errorCount: 1, reason: "chute" },
+    ];
+    const r = computePrioritySnapshot(input({ manualErrors }));
+    strictEqual(r.errorScore, 14.5);
+    strictEqual(r.knowledgeState, "FRAGILE");
+  });
+
+  it("erro antigo (fora de 30 dias) conta só recorrência, não volume", () => {
+    const manualErrors: ManualError[] = [
+      { createdAt: ago(40), errorCount: 10, reason: "interpretação" },
+    ];
+    const r = computePrioritySnapshot(input({ manualErrors }));
+    strictEqual(r.errorScore, 3.33);
+  });
+
+  it("sem erros no caderno mantém o score de erro zerado", () => {
+    const r = computePrioritySnapshot(input());
+    strictEqual(r.errorScore, 0);
   });
 });

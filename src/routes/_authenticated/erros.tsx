@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { requireUserId } from "@/lib/actions";
+import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
 import {
   ERROR_REASONS,
   useSubjects,
@@ -69,10 +70,13 @@ function ErrosPage() {
       if (editingId) {
         const { error } = await supabase.from("question_errors").update(payload).eq("id", editingId);
         if (error) throw error;
-        return;
+      } else {
+        const { error } = await supabase.from("question_errors").insert({ ...payload, user_id: userId });
+        if (error) throw error;
       }
-      const { error } = await supabase.from("question_errors").insert({ ...payload, user_id: userId });
-      if (error) throw error;
+      void recalculateSubjectPriority(userId, subjectId).catch((err) => {
+        console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
+      });
     },
     onSuccess: () => {
       resetForm();
@@ -83,9 +87,13 @@ function ErrosPage() {
   });
 
   const removeError = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, subjectId }: { id: string; subjectId: string }) => {
+      const userId = await requireUserId();
       const { error } = await supabase.from("question_errors").delete().eq("id", id);
       if (error) throw error;
+      void recalculateSubjectPriority(userId, subjectId).catch((err) => {
+        console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["question_errors"] });
@@ -272,7 +280,7 @@ function ErrosPage() {
                 <button
                   type="button"
                   className="shrink-0 text-xs text-muted-foreground hover:text-rose"
-                  onClick={() => removeError.mutate(e.id)}
+                  onClick={() => removeError.mutate({ id: e.id, subjectId: e.subject_id })}
                 >
                   Excluir
                 </button>
