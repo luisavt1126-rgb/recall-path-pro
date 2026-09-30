@@ -11,6 +11,7 @@ export type SubjectPrioritySnapshot = Tables["subject_priority_snapshots"]["Row"
 export type StudySession = Tables["study_sessions"]["Row"];
 export type Review = Tables["reviews"]["Row"];
 export type QuestionLog = Tables["question_logs"]["Row"];
+export type QuestionError = Tables["question_errors"]["Row"];
 export type AnkiDeck = Tables["anki_decks"]["Row"];
 export type DeckSession = Tables["deck_sessions"]["Row"];
 export type TaskCompletion = Tables["task_completions"]["Row"];
@@ -94,6 +95,29 @@ export function useSubjectPrioritySnapshots() {
         .order("priority_score", { ascending: false });
       if (error) throw error;
       return data as SubjectPrioritySnapshot[];
+    },
+  });
+}
+
+export const ERROR_REASONS = [
+  "não sabia o conteúdo",
+  "confundi conceitos",
+  "falta de atenção",
+  "interpretação",
+  "erro de conduta",
+  "chute",
+] as const;
+
+export function useQuestionErrors() {
+  return useQuery({
+    queryKey: ["question_errors"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("question_errors")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as QuestionError[];
     },
   });
 }

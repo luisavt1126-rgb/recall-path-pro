@@ -23,6 +23,7 @@ import { Route as AuthenticatedRevisoesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedTemporizadorRouteImport } from './routes/_authenticated/temporizador'
 import { Route as AuthenticatedAssuntosIndexRouteImport } from './routes/_authenticated/assuntos.index'
 import { Route as AuthenticatedAssuntosIdRouteImport } from './routes/_authenticated/assuntos.$id'
+import { Route as AuthenticatedErrosRouteImport } from './routes/_authenticated/erros'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -96,6 +97,11 @@ const AuthenticatedAssuntosIdRoute = AuthenticatedAssuntosIdRouteImport.update({
   path: '/assuntos/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedErrosRoute = AuthenticatedErrosRouteImport.update({
+  id: '/erros',
+  path: '/erros',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/temporizador': typeof AuthenticatedTemporizadorRoute
   '/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/assuntos/': typeof AuthenticatedAssuntosIndexRoute
+  '/erros': typeof AuthenticatedErrosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/temporizador': typeof AuthenticatedTemporizadorRoute
   '/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/assuntos': typeof AuthenticatedAssuntosIndexRoute
+  '/erros': typeof AuthenticatedErrosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/_authenticated/temporizador': typeof AuthenticatedTemporizadorRoute
   '/_authenticated/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/_authenticated/assuntos/': typeof AuthenticatedAssuntosIndexRoute
+  '/_authenticated/erros': typeof AuthenticatedErrosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/temporizador'
     | '/assuntos/$id'
     | '/assuntos/'
+    | '/erros'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
     | '/temporizador'
     | '/assuntos/$id'
     | '/assuntos'
+    | '/erros'
   id:
     | '__root__'
     | '/'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/_authenticated/temporizador'
     | '/_authenticated/assuntos/$id'
     | '/_authenticated/assuntos/'
+    | '/_authenticated/erros'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -299,6 +311,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssuntosIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/erros': {
+      id: '/_authenticated/erros'
+      path: '/erros'
+      fullPath: '/erros'
+      preLoaderRoute: typeof AuthenticatedErrosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -314,6 +333,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTemporizadorRoute: typeof AuthenticatedTemporizadorRoute
   AuthenticatedAssuntosIdRoute: typeof AuthenticatedAssuntosIdRoute
   AuthenticatedAssuntosIndexRoute: typeof AuthenticatedAssuntosIndexRoute
+  AuthenticatedErrosRoute: typeof AuthenticatedErrosRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -328,6 +348,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTemporizadorRoute: AuthenticatedTemporizadorRoute,
   AuthenticatedAssuntosIdRoute: AuthenticatedAssuntosIdRoute,
   AuthenticatedAssuntosIndexRoute: AuthenticatedAssuntosIndexRoute,
+  AuthenticatedErrosRoute: AuthenticatedErrosRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

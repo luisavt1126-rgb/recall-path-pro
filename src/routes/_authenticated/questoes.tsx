@@ -68,7 +68,11 @@ function QuestionsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries();
-      toast.success("Questões registradas");
+      if (Number(correct) < Number(total)) {
+        toast.success("Questões registradas · anote os erros no caderno");
+      } else {
+        toast.success("Questões registradas");
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });

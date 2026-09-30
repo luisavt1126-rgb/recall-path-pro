@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import {
+  AlertTriangle,
   BarChart3,
   BookOpen,
   CalendarDays,
@@ -25,6 +26,7 @@ const NAV = [
   { to: "/revisoes", label: "Revisões", icon: ListChecks },
   { to: "/baralhos", label: "Baralhos Anki", icon: Layers },
   { to: "/questoes", label: "Questões", icon: ListChecks },
+  { to: "/erros", label: "Erros", icon: AlertTriangle },
   { to: "/calendario", label: "Calendário", icon: CalendarDays },
   { to: "/provas", label: "Provas", icon: GraduationCap },
   { to: "/temporizador", label: "Temporizador", icon: Timer },

@@ -393,6 +393,57 @@ export type Database = {
           },
         ]
       }
+      question_errors: {
+        Row: {
+          created_at: string
+          error_count: number
+          id: string
+          note: string | null
+          reason: string
+          subject_id: string
+          subtopic_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_count?: number
+          id?: string
+          note?: string | null
+          reason: string
+          subject_id: string
+          subtopic_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_count?: number
+          id?: string
+          note?: string | null
+          reason?: string
+          subject_id?: string
+          subtopic_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_errors_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_errors_subtopic_id_fkey"
+            columns: ["subtopic_id"]
+            isOneToOne: false
+            referencedRelation: "subject_subtopics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           id: string
