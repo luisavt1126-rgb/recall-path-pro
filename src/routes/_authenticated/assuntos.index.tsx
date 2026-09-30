@@ -91,56 +91,30 @@ const CORE_AREAS: { area: string; specialties: string[] }[] = [
   },
 ];
 
-/** Garante que as grandes áreas e especialidades existam (classificadores fixos). */
-function useSeedCoreAreas(
-  disciplines: { id: string; name: string; parent_id: string | null }[],
-  ready: boolean,
-) {
+/** Garante que as especialidades (classificadores) existam, sem duplicar. */
+function useSeedCoreAreas(disciplines: { id: string; name: string }[], ready: boolean) {
   const qc = useQueryClient();
   const ran = useRef(false);
 
   useEffect(() => {
     if (!ready || ran.current) return;
-    const existingNames = new Set(disciplines.map((d) => d.name.trim().toLowerCase()));
-    const missingAreas = CORE_AREAS.filter((a) => !existingNames.has(a.area.toLowerCase()));
-    const missingSpecialties = CORE_AREAS.flatMap((a) =>
-      a.specialties.filter((s) => !existingNames.has(s.toLowerCase())),
+    const expected = new Set(
+      CORE_AREAS.flatMap((a) => a.specialties).map((n) => n.trim().toLowerCase()),
     );
-    if (missingAreas.length === 0 && missingSpecialties.length === 0) return;
+    const actual = new Set(disciplines.map((d) => d.name.trim().toLowerCase()));
+    const needsReseed =
+      expected.size !== actual.size || [...expected].some((n) => !actual.has(n));
+    if (!needsReseed) return;
     ran.current = true;
     (async () => {
       try {
         const userId = await requireUserId();
-        // 1. Cria as grandes áreas (parent_id null).
-        const areaIdByName = new Map<string, string>();
-        for (const d of disciplines) {
-          if (!d.parent_id) areaIdByName.set(d.name.trim().toLowerCase(), d.id);
-        }
-        if (missingAreas.length > 0) {
-          const { data: inserted, error } = await supabase
-            .from("disciplines")
-            .insert(missingAreas.map((a) => ({ user_id: userId, name: a.area, parent_id: null })))
-            .select("id, name");
-          if (error) throw error;
-          for (const row of inserted ?? []) {
-            areaIdByName.set(row.name.trim().toLowerCase(), row.id);
-          }
-        }
-        // 2. Cria as especialidades vinculadas à grande área.
-        const specialtiesToInsert: { user_id: string; name: string; parent_id: string }[] = [];
-        for (const { area, specialties } of CORE_AREAS) {
-          const areaId = areaIdByName.get(area.toLowerCase());
-          if (!areaId) continue;
-          for (const name of specialties) {
-            if (!existingNames.has(name.toLowerCase())) {
-              specialtiesToInsert.push({ user_id: userId, name, parent_id: areaId });
-            }
-          }
-        }
-        if (specialtiesToInsert.length > 0) {
-          const { error } = await supabase.from("disciplines").insert(specialtiesToInsert);
-          if (error) throw error;
-        }
+        await supabase.from("disciplines").delete().eq("user_id", userId);
+        const all = CORE_AREAS.flatMap((a) =>
+          a.specialties.map((name) => ({ user_id: userId, name })),
+        );
+        const { error } = await supabase.from("disciplines").insert(all);
+        if (error) throw error;
         qc.invalidateQueries({ queryKey: ["disciplines"] });
       } catch (e) {
         ran.current = false;
@@ -159,7 +133,7 @@ function SubjectsPage() {
 
   const [subjectName, setSubjectName] = useState("");
   const [areaName, setAreaName] = useState("");
-  const [specialtyId, setSpecialtyId] = useState("");
+  const [specialtyName, setSpecialtyName] = useState("");
   const [prep, setPrep] = useState<Record<PrepKey, boolean>>({
     video_watched_at: false,
     summary_ready_at: false,
@@ -174,22 +148,21 @@ function SubjectsPage() {
 
   useSeedCoreAreas(disciplines, disciplinesLoaded);
 
-  // Grandes áreas (parent_id null) e especialidades do nível selecionado.
-  const areaDisciplines = disciplines.filter((d) => !d.parent_id);
-  const selectedArea = areaDisciplines.find((a) => a.name === areaName);
-  const selectedAreaSpecialties = selectedArea
-    ? disciplines.filter((d) => d.parent_id === selectedArea.id)
-    : [];
+  // Especialidades (hardcoded) do nível selecionado.
+  const selectedAreaSpecialties =
+    CORE_AREAS.find((a) => a.area === areaName)?.specialties ?? [];
 
   const addSubject = useMutation({
     mutationFn: async () => {
       const userId = await requireUserId();
+      const specialtyDiscipline = disciplines.find((d) => d.name === specialtyName);
+      if (!specialtyDiscipline) throw new Error("Especialidade não encontrada. Recarregue a página.");
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from("subjects")
         .insert({
           user_id: userId,
-          discipline_id: specialtyId,
+          discipline_id: specialtyDiscipline.id,
           name: subjectName.trim(),
           video_watched_at: prep.video_watched_at ? now : null,
           summary_ready_at: prep.summary_ready_at ? now : null,
@@ -218,7 +191,7 @@ function SubjectsPage() {
         const { error: questionsError } = await supabase.from("question_logs").insert({
           user_id: userId,
           subject_id: id,
-          discipline_id: specialtyId,
+          discipline_id: specialtyDiscipline.id,
           total: Number(questionsTotal),
           correct: Number(questionsCorrect),
         });
@@ -249,7 +222,7 @@ function SubjectsPage() {
     },
     onSuccess: () => {
       setSubjectName("");
-      setSpecialtyId("");
+      setSpecialtyName("");
       setPrep({ video_watched_at: false, summary_ready_at: false, deck_ready_at: false });
       setQuestionsDone(false);
       setQuestionsTotal("");
@@ -322,7 +295,7 @@ function SubjectsPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!subjectName.trim() || !areaName || !specialtyId) return;
+              if (!subjectName.trim() || !areaName || !specialtyName) return;
               if (questionsDone) {
                 const t = Number(questionsTotal);
                 const c = Number(questionsCorrect);
@@ -341,14 +314,14 @@ function SubjectsPage() {
                 value={areaName}
                 onChange={(e) => {
                   setAreaName(e.target.value);
-                  setSpecialtyId("");
+                  setSpecialtyName("");
                 }}
                 required
               >
                 <option value="">Selecione</option>
-                {areaDisciplines.map((d) => (
-                  <option key={d.id} value={d.name}>
-                    {d.name}
+                {CORE_AREAS.map((a) => (
+                  <option key={a.area} value={a.area}>
+                    {a.area}
                   </option>
                 ))}
               </select>
@@ -356,15 +329,15 @@ function SubjectsPage() {
             <Field label="Especialidade">
               <select
                 className={inputClass}
-                value={specialtyId}
-                onChange={(e) => setSpecialtyId(e.target.value)}
+                value={specialtyName}
+                onChange={(e) => setSpecialtyName(e.target.value)}
                 required
                 disabled={!areaName}
               >
                 <option value="">Selecione</option>
-                {selectedAreaSpecialties.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
+                {selectedAreaSpecialties.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
                   </option>
                 ))}
               </select>
@@ -461,13 +434,15 @@ function SubjectsPage() {
         <Empty>Nenhum assunto cadastrado ainda. Adicione seu primeiro assunto.</Empty>
       )}
 
-      {subjects.length > 0 && areaDisciplines.map((area) => {
-        const areaSpecialties = disciplines.filter((d) => d.parent_id === area.id);
+      {subjects.length > 0 && CORE_AREAS.map(({ area, specialties }) => {
+        const areaSpecialties = specialties
+          .map((name) => disciplines.find((d) => d.name === name))
+          .filter((d): d is NonNullable<typeof d> => Boolean(d));
         const hasSubjects = areaSpecialties.some(
           (spec) => subjects.some((s) => s.discipline_id === spec.id),
         );
         return (
-          <Panel key={area.id} title={area.name}>
+          <Panel key={area} title={area}>
             {!hasSubjects ? (
               <Empty>Nenhum assunto ainda.</Empty>
             ) : (

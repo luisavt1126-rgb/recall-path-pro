@@ -117,7 +117,6 @@ export type Database = {
           created_at: string
           id: string
           name: string
-          parent_id: string | null
           user_id: string
         }
         Insert: {
@@ -125,7 +124,6 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
-          parent_id?: string | null
           user_id: string
         }
         Update: {
@@ -133,18 +131,9 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
-          parent_id?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "disciplines_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "disciplines"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       events: {
         Row: {
