@@ -17,7 +17,7 @@ import {
 import { questionPriority } from "@/lib/priority";
 import { Panel, PriorityTag, Field, inputClass, buttonClass, Empty } from "@/components/bits";
 import { PrepIcons, PREP_ITEMS, type PrepKey } from "@/components/SubjectPrep";
-import { QuestionErrorSection, type QuestionErrorData } from "@/components/QuestionErrorSection";
+import { QuestionErrorSection, type QuestionErrorSpec } from "@/components/QuestionErrorSection";
 import { reconcileErrorsAfterQuestionReview } from "@/lib/errorReconciliation";
 import { formatDate } from "@/lib/format";
 
@@ -88,7 +88,7 @@ function SubjectsPage() {
   const [questionsTotal, setQuestionsTotal] = useState("");
   const [questionsCorrect, setQuestionsCorrect] = useState("");
   const [questionsMinutes, setQuestionsMinutes] = useState("");
-  const [errorData, setErrorData] = useState<QuestionErrorData | null>(null);
+  const [errorData, setErrorData] = useState<QuestionErrorSpec[] | null>(null);
   const [subtopicsInput, setSubtopicsInput] = useState("");
   const [confirmClear, setConfirmClear] = useState("");
 
@@ -152,12 +152,13 @@ function SubjectsPage() {
           id,
           questionsPct,
           errorData
-            ? {
-                subtopicId: errorData.subtopicId || null,
-                errorCount: Number(questionsTotal) - Number(questionsCorrect),
-                reason: errorData.reason,
-                note: errorData.note.trim() || null,
-              }
+            ? errorData.map((spec) => ({
+                errorCount: spec.errorCount,
+                reason: spec.reason,
+                what: spec.what || null,
+                subtopicName: spec.subtopicName || null,
+                status: spec.status,
+              }))
             : null,
         );
 

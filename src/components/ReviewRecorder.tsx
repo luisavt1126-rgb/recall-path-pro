@@ -5,7 +5,7 @@ import { requireUserId, useRateSubject } from "@/lib/actions";
 import type { Subject } from "@/lib/data";
 import { RATING_LABEL, type Rating } from "@/lib/srs";
 import { buttonClass, ghostButtonClass, inputClass } from "@/components/bits";
-import { QuestionErrorSection, type QuestionErrorData } from "@/components/QuestionErrorSection";
+import { QuestionErrorSection, type QuestionErrorSpec } from "@/components/QuestionErrorSection";
 import { reconcileErrorsAfterQuestionReview } from "@/lib/errorReconciliation";
 
 type ReviewType = "questoes" | "anki";
@@ -57,7 +57,7 @@ export function ReviewRecorder({
   const [done, setDone] = useState("");
   const [concluiu, setConcluiu] = useState<boolean | null>(null);
   const [minutes, setMinutes] = useState("");
-  const [errorData, setErrorData] = useState<QuestionErrorData | null>(null);
+  const [errorData, setErrorData] = useState<QuestionErrorSpec[] | null>(null);
 
   const reset = () => {
     setType(null);
@@ -91,12 +91,13 @@ export function ReviewRecorder({
           subject.id,
           reviewPct,
           errorData
-            ? {
-                subtopicId: errorData.subtopicId || null,
-                errorCount: totalNum - correctNum,
-                reason: errorData.reason,
-                note: errorData.note.trim() || null,
-              }
+            ? errorData.map((spec) => ({
+                errorCount: spec.errorCount,
+                reason: spec.reason,
+                what: spec.what || null,
+                subtopicName: spec.subtopicName || null,
+                status: spec.status,
+              }))
             : null,
         );
       }

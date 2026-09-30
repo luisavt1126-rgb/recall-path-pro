@@ -1,82 +1,80 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
 import {
   useSubjects,
   useDecks,
+  useDisciplines,
   useQuestionLogs,
-  useStudySessions,
   useReviews,
   useDeckSessions,
   useSubjectPrioritySnapshots,
   type Subject,
 } from "@/lib/data";
-import { RATING_LABEL, type Rating } from "@/lib/srs";
+import { CORE_AREAS } from "@/lib/areas";
 import { Panel, Empty, Stat } from "@/components/bits";
-import { addDays, formatDate, formatHours, isSameDay, startOfWeek } from "@/lib/format";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { addDays, formatDate, isSameDay, startOfDay } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
     meta: [
       { title: "Calendário · Residuum" },
-      { name: "description", content: "Dashboard mensal de revisões e histórico de estudos." },
+      { name: "description", content: "Dashboard mensal operacional de revisões SRS." },
       { property: "og:title", content: "Calendário · Residuum" },
-      { property: "og:description", content: "Revisões espaçadas e histórico de estudos do mês." },
+      { property: "og:description", content: "Passados, vencimentos e projeções SRS do mês." },
     ],
   }),
   component: CalendarPage,
 });
 
-type DayEventType = "questoes" | "revisao" | "flashcards" | "estudo" | "checklist" | "srs";
-
-type DayEvent = {
-  key: string;
-  type: DayEventType;
-  title: string;
-  detail: string;
-  at: string;
-  subjectId?: string;
-  deckId?: string;
-};
-
-const TYPE_LABEL: Record<DayEventType, string> = {
-  questoes: "Q",
-  revisao: "R",
-  flashcards: "A",
-  estudo: "E",
-  checklist: "✓",
-  srs: "R",
-};
-
-const TYPE_CHIP: Record<DayEventType, string> = {
-  questoes: "bg-brand/10 text-brand",
-  revisao: "bg-violet/10 text-violet",
-  flashcards: "bg-sage/10 text-sage",
-  estudo: "bg-amber/10 text-amber",
-  checklist: "bg-muted text-muted-foreground",
-  srs: "bg-rose/10 text-rose",
-};
-
-const TYPE_DOT: Record<DayEventType, string> = {
-  questoes: "bg-brand",
-  revisao: "bg-violet",
-  flashcards: "bg-sage",
-  estudo: "bg-amber",
-  checklist: "bg-muted-foreground",
-  srs: "bg-rose",
-};
-
-const WEEKDAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 const dayKey = (d: Date) => {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
+const startOfWeekSunday = (d: Date) => {
+  const x = startOfDay(d);
+  x.setDate(x.getDate() - x.getDay());
+  return x;
+};
+
+type Pill = { label: string; color: string; title: string };
+
+function SideSection({
+  title,
+  count,
+  defaultOpen = true,
+  children,
+}: {
+  title: string;
+  count: number;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm font-medium hover:bg-secondary">
+        <span>
+          {title} <span className="text-xs text-muted-foreground">({count})</span>
+        </span>
+        <ChevronRight
+          className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent>{children}</CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 function CalendarPage() {
   const { data: subjects = [] } = useSubjects();
   const { data: decks = [] } = useDecks();
+  const { data: disciplines = [] } = useDisciplines();
   const { data: logs = [] } = useQuestionLogs();
-  const { data: sessions = [] } = useStudySessions();
   const { data: reviews = [] } = useReviews();
   const { data: deckSessions = [] } = useDeckSessions();
   const { data: snapshots = [] } = useSubjectPrioritySnapshots();
@@ -85,16 +83,15 @@ function CalendarPage() {
   const [selectedDay, setSelectedDay] = useState<string | null>(dayKey(new Date()));
 
   const now = new Date();
+  const today = startOfDay(now);
   const subjectById = new Map(subjects.map((s) => [s.id, s]));
-  const deckById = new Map(decks.map((d) => [d.id, d]));
-  const subjectName = (id: string | null) => (id ? subjectById.get(id)?.name ?? "—" : "Geral");
-  const deckName = (id: string) => deckById.get(id)?.name ?? "—";
+  const disciplineById = new Map(disciplines.map((d) => [d.id, d]));
 
   // --- Métricas ---
   const todaySubjects = subjects.filter((s) => s.next_review_at && isSameDay(new Date(s.next_review_at), now));
   const todayDecks = decks.filter((d) => d.next_review_at && isSameDay(new Date(d.next_review_at), now));
-  const overdueSubjects = subjects.filter((s) => s.next_review_at && new Date(s.next_review_at).getTime() < now.getTime());
-  const overdueDecks = decks.filter((d) => d.next_review_at && new Date(d.next_review_at).getTime() < now.getTime());
+  const overdueSubjects = subjects.filter((s) => s.next_review_at && new Date(s.next_review_at).getTime() < today.getTime());
+  const overdueDecks = decks.filter((d) => d.next_review_at && new Date(d.next_review_at).getTime() < today.getTime());
 
   const reviewsToday = todaySubjects.length + todayDecks.length;
   const overdueCount = overdueSubjects.length + overdueDecks.length;
@@ -102,118 +99,128 @@ function CalendarPage() {
   const totalQuestions = logs.reduce((a, l) => a + l.total, 0);
   const totalCorrect = logs.reduce((a, l) => a + l.correct, 0);
   const avgAccuracy = totalQuestions ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
-  const totalMinutes = sessions.reduce((a, s) => a + s.minutes, 0);
   const totalCards = deckSessions.reduce((a, d) => a + d.cards_reviewed, 0);
 
-  // --- Eventos por dia ---
-  const allEvents: DayEvent[] = [
-    ...logs.map((l) => ({
-      key: `q:${l.id}`,
-      type: "questoes" as const,
-      title: subjectName(l.subject_id),
-      detail: `${l.correct}/${l.total} questões`,
-      at: l.created_at,
-      subjectId: l.subject_id ?? undefined,
-    })),
-    ...reviews.map((r) => ({
-      key: `r:${r.id}`,
-      type: "revisao" as const,
-      title: subjectName(r.subject_id),
-      detail: `Revisão · ${RATING_LABEL[r.rating as Rating] ?? r.rating}`,
-      at: r.reviewed_at,
-      subjectId: r.subject_id,
-    })),
-    ...deckSessions.map((d) => ({
-      key: `d:${d.id}`,
-      type: "flashcards" as const,
-      title: deckName(d.deck_id),
-      detail: `${d.cards_reviewed} cards`,
-      at: d.reviewed_at,
-      deckId: d.deck_id,
-    })),
-    ...sessions.map((s) => ({
-      key: `s:${s.id}`,
-      type: "estudo" as const,
-      title: subjectName(s.subject_id),
-      detail: `Estudo · ${formatHours(s.minutes)}`,
-      at: s.started_at,
-      subjectId: s.subject_id ?? undefined,
-    })),
-    ...subjects.flatMap((s) => [
-      ...(s.video_watched_at
-        ? [{ key: `v:${s.id}`, type: "checklist" as const, title: s.name, detail: "Vídeoaula", at: s.video_watched_at, subjectId: s.id }]
-        : []),
-      ...(s.summary_ready_at
-        ? [{ key: `m:${s.id}`, type: "checklist" as const, title: s.name, detail: "Resumo", at: s.summary_ready_at, subjectId: s.id }]
-        : []),
-      ...(s.deck_ready_at
-        ? [{ key: `b:${s.id}`, type: "checklist" as const, title: s.name, detail: "Baralho", at: s.deck_ready_at, subjectId: s.id }]
-        : []),
-    ]),
-    ...subjects
-      .filter((s) => s.next_review_at)
-      .map((s) => ({
-        key: `srs:${s.id}`,
-        type: "srs" as const,
-        title: s.name,
-        detail: "Revisão SRS",
-        at: s.next_review_at as string,
-        subjectId: s.id,
-      })),
-    ...decks
-      .filter((d) => d.next_review_at)
-      .map((d) => ({
-        key: `srsd:${d.id}`,
-        type: "srs" as const,
-        title: d.name,
-        detail: "Revisão SRS",
-        at: d.next_review_at as string,
-        deckId: d.id,
-      })),
-  ];
+  // Progresso por Grande Área (CORE_AREAS).
+  const areaProgress = CORE_AREAS.map((area) => {
+    const areaSubjects = subjects.filter((s) => {
+      const d = disciplineById.get(s.discipline_id);
+      return d ? area.specialties.includes(d.name) : false;
+    });
+    const studied = areaSubjects.filter((s) => s.first_studied_at).length;
+    const pct = areaSubjects.length ? Math.round((studied / areaSubjects.length) * 100) : 0;
+    return { area: area.area, total: areaSubjects.length, studied, pct };
+  }).filter((a) => a.total > 0);
 
-  const eventsByDay = new Map<string, DayEvent[]>();
-  for (const e of allEvents) {
-    const k = dayKey(new Date(e.at));
-    const list = eventsByDay.get(k) ?? [];
-    list.push(e);
-    eventsByDay.set(k, list);
-  }
+  // --- Pílulas por dia (agendado + concluído) ---
+  const pillsByDay = new Map<string, Pill[]>();
+  const addPill = (k: string, pill: Pill) => {
+    const list = pillsByDay.get(k) ?? [];
+    list.push(pill);
+    pillsByDay.set(k, list);
+  };
+  const pushScheduled = (name: string, at: string) => {
+    const k = dayKey(new Date(at));
+    const overdue = new Date(at).getTime() < today.getTime();
+    addPill(k, {
+      label: name,
+      title: `${name} · ${overdue ? "atrasada" : "agendada"} · ${formatDate(at)}`,
+      color: overdue ? "bg-rose/15 text-rose" : "bg-emerald-500/15 text-emerald-600",
+    });
+  };
+  for (const s of subjects) if (s.next_review_at) pushScheduled(s.name, s.next_review_at);
+  for (const d of decks) if (d.next_review_at) pushScheduled(d.name, d.next_review_at);
 
-  // --- Grade mensal ---
+  const completedByDay = new Map<string, number>();
+  const bumpCompleted = (at: string) => {
+    const k = dayKey(new Date(at));
+    completedByDay.set(k, (completedByDay.get(k) ?? 0) + 1);
+  };
+  for (const r of reviews) bumpCompleted(r.reviewed_at);
+  for (const ds of deckSessions) bumpCompleted(ds.reviewed_at);
+
+  // --- Grade mensal (7 colunas, Dom a Sáb) ---
   const monthCursor = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
-  const gridStart = startOfWeek(monthCursor);
-  const gridDays = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+  const gridStart = startOfWeekSunday(monthCursor);
+  const daysInMonth = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0).getDate();
+  const totalCells = Math.ceil((monthCursor.getDay() + daysInMonth) / 7) * 7;
+  const gridDays = Array.from({ length: totalCells }, (_, i) => addDays(gridStart, i));
   const monthLabel = monthCursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-  const selectedEvents = selectedDay ? eventsByDay.get(selectedDay) ?? [] : [];
+  const selectedPills = selectedDay ? pillsByDay.get(selectedDay) ?? [] : [];
 
   // --- Painel lateral ---
   const upcoming = [
     ...subjects
-      .filter((s) => s.next_review_at && new Date(s.next_review_at).getTime() > now.getTime())
-      .map((s) => ({ key: `s:${s.id}`, name: s.name, at: s.next_review_at as string, kind: "subject" as const, subjectId: s.id })),
+      .filter((s) => s.next_review_at && new Date(s.next_review_at).getTime() > today.getTime())
+      .map((s) => ({ key: `s:${s.id}`, name: s.name, at: s.next_review_at as string, subjectId: s.id as string | null })),
     ...decks
-      .filter((d) => d.next_review_at && new Date(d.next_review_at).getTime() > now.getTime())
-      .map((d) => ({ key: `d:${d.id}`, name: d.name, at: d.next_review_at as string, kind: "deck" as const, subjectId: null })),
+      .filter((d) => d.next_review_at && new Date(d.next_review_at).getTime() > today.getTime())
+      .map((d) => ({ key: `d:${d.id}`, name: d.name, at: d.next_review_at as string, subjectId: null as string | null })),
   ].sort((a, b) => a.at.localeCompare(b.at));
 
   const priority = snapshots
     .map((snap) => ({ snap, subject: subjectById.get(snap.subject_id) }))
     .filter((x): x is { snap: (typeof snapshots)[number]; subject: Subject } => Boolean(x.subject))
     .sort((a, b) => b.snap.priority_score - a.snap.priority_score)
-    .slice(0, 8);
+    .slice(0, 6);
+
+  const reviewRow = (item: { key: string; name: string; at: string; subjectId: string | null }, overdue: boolean) =>
+    item.subjectId ? (
+      <Link
+        key={item.key}
+        to="/assuntos/$id"
+        params={{ id: item.subjectId }}
+        search={{ tipo: "questoes" }}
+        className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary"
+      >
+        <span className={`h-2 w-2 shrink-0 rounded-full ${overdue ? "bg-rose" : "bg-violet"}`} />
+        <span className="min-w-0 flex-1 truncate">{item.name}</span>
+        <span className={`shrink-0 text-xs ${overdue ? "text-rose" : "text-muted-foreground"}`}>
+          {formatDate(item.at)}
+        </span>
+      </Link>
+    ) : (
+      <Link key={item.key} to="/baralhos" className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${overdue ? "bg-rose" : "bg-sage"}`} />
+        <span className="min-w-0 flex-1 truncate">{item.name}</span>
+        <span className={`shrink-0 text-xs ${overdue ? "text-rose" : "text-muted-foreground"}`}>
+          {formatDate(item.at)}
+        </span>
+      </Link>
+    );
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <Stat label="Revisões hoje" value={String(reviewsToday)} tone="brand" />
         <Stat label="Atrasadas" value={String(overdueCount)} tone={overdueCount > 0 ? "rose" : "default"} />
         <Stat label="Concluídas" value={String(completedCount)} />
         <Stat label="Acerto médio" value={totalQuestions ? `${avgAccuracy}%` : "—"} />
-        <Stat label="Horas estudadas" value={`${(totalMinutes / 60).toFixed(1).replace(".", ",")}h`} />
-        <Stat label="Flashcards feitos" value={String(totalCards)} />
+        <Stat label="Cards revisados" value={String(totalCards)} />
       </div>
+
+      <Panel title="Progresso por Grande Área">
+        {areaProgress.length === 0 ? (
+          <Empty>Nenhum assunto registrado ainda.</Empty>
+        ) : (
+          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+            {areaProgress.map((a) => (
+              <div key={a.area}>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium">{a.area}</span>
+                  <span className="text-muted-foreground">
+                    {a.studied}/{a.total}
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-secondary">
+                  <div className="h-full rounded-full bg-brand" style={{ width: `${a.pct}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
@@ -243,39 +250,45 @@ function CalendarPage() {
             <div className="grid grid-cols-7 gap-1.5">
               {gridDays.map((day) => {
                 const k = dayKey(day);
-                const events = eventsByDay.get(k) ?? [];
+                const pills = pillsByDay.get(k) ?? [];
+                const completed = completedByDay.get(k) ?? 0;
                 const inMonth = day.getMonth() === monthCursor.getMonth();
                 const isToday = isSameDay(day, now);
                 const isSelected = selectedDay === k;
-                const overdue = events.some((e) => e.type === "srs" && new Date(e.at).getTime() < now.getTime());
                 return (
                   <button
                     key={k}
                     type="button"
                     onClick={() => setSelectedDay(k)}
-                    className={`relative min-h-[52px] rounded-lg border p-1 text-left transition-colors ${
+                    className={`relative min-h-[56px] rounded-lg border p-1 text-left transition-colors ${
                       isSelected
                         ? "border-brand ring-1 ring-brand"
                         : isToday
-                          ? "border-brand/50"
+                          ? "border-amber-400 ring-1 ring-amber-400"
                           : "border-border hover:border-muted-foreground"
                     } ${inMonth ? "bg-card" : "bg-muted/30 opacity-50"}`}
                   >
-                    <span className={`text-[11px] font-semibold ${isToday ? "text-brand" : ""}`}>{day.getDate()}</span>
-                    <span className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${overdue ? "bg-rose" : "bg-transparent"}`} />
-                    <div className="mt-1 flex flex-wrap gap-0.5">
-                      {events.slice(0, 3).map((e) => (
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[11px] font-semibold ${isToday ? "text-amber-600" : ""}`}>
+                        {day.getDate()}
+                      </span>
+                      {completed > 0 && (
+                        <span className="text-[9px] font-semibold text-emerald-600">✓{completed}</span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex flex-col gap-0.5">
+                      {pills.slice(0, 3).map((p, i) => (
                         <span
-                          key={e.key}
-                          className={`rounded px-1 py-0.5 text-[9px] font-semibold leading-none ${TYPE_CHIP[e.type]}`}
-                          title={`${e.title} · ${e.detail}`}
+                          key={i}
+                          className={`truncate rounded px-1 py-0.5 text-[9px] font-semibold leading-none ${p.color}`}
+                          title={p.title}
                         >
-                          {TYPE_LABEL[e.type]}
+                          {p.label}
                         </span>
                       ))}
-                      {events.length > 3 && (
-                        <span className="rounded px-1 py-0.5 text-[9px] font-medium leading-none text-muted-foreground">
-                          +{events.length - 3}
+                      {pills.length > 3 && (
+                        <span className="px-1 text-[9px] font-medium leading-none text-muted-foreground">
+                          +{pills.length - 3}
                         </span>
                       )}
                     </div>
@@ -296,119 +309,72 @@ function CalendarPage() {
                 : "Selecione um dia"
             }
           >
-            {selectedEvents.length === 0 ? (
-              <Empty>Nenhuma atividade neste dia.</Empty>
+            {selectedPills.length === 0 ? (
+              <Empty>Nenhuma revisão agendada neste dia.</Empty>
             ) : (
               <div className="space-y-2 text-sm">
-                {selectedEvents.map((e) => {
-                  const inner = (
-                    <>
-                      <span className={`h-2 w-2 shrink-0 rounded-full ${TYPE_DOT[e.type]}`} />
-                      <span className="min-w-0 flex-1 truncate">{e.title}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{e.detail}</span>
-                    </>
-                  );
-                  const cls = "flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary";
-                  if (e.subjectId) {
-                    return (
-                      <Link key={e.key} to="/assuntos/$id" params={{ id: e.subjectId }} className={cls}>
-                        {inner}
-                      </Link>
-                    );
-                  }
-                  if (e.deckId) {
-                    return (
-                      <Link key={e.key} to="/baralhos" className={cls}>
-                        {inner}
-                      </Link>
-                    );
-                  }
-                  return (
-                    <div key={e.key} className={cls}>
-                      {inner}
-                    </div>
-                  );
-                })}
+                {selectedPills.map((p, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${p.color.split(" ")[0]}`} />
+                    <span className="min-w-0 flex-1 truncate">{p.label}</span>
+                  </div>
+                ))}
               </div>
             )}
           </Panel>
         </div>
 
         <div className="space-y-5">
-          <Panel title="Hoje">
-            {reviewsToday === 0 ? (
-              <Empty>Nenhuma revisão hoje.</Empty>
-            ) : (
-              <div className="space-y-2 text-sm">
-                {todaySubjects.map((s) => (
-                  <Link key={s.id} to="/assuntos/$id" params={{ id: s.id }} search={{ tipo: "questoes" }} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary">
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-violet" />
-                    <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                    <span className="shrink-0 text-xs text-brand">❓ revisar</span>
-                  </Link>
-                ))}
-                {todayDecks.map((d) => (
-                  <div key={d.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-sage" />
-                    <span className="min-w-0 flex-1 truncate">{d.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Panel>
-
-          <Panel title={`Atrasadas (${overdueCount})`}>
-            {overdueCount === 0 ? (
-              <Empty>Nada atrasado. 🎉</Empty>
-            ) : (
-              <div className="space-y-2 text-sm">
-                {overdueSubjects.slice(0, 8).map((s) => (
-                  <Link key={s.id} to="/assuntos/$id" params={{ id: s.id }} search={{ tipo: "questoes" }} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary">
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-rose" />
-                    <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                    <span className="text-xs text-rose">{formatDate(s.next_review_at)}</span>
-                  </Link>
-                ))}
-                {overdueDecks.slice(0, 8).map((d) => (
-                  <div key={d.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-rose" />
-                    <span className="min-w-0 flex-1 truncate">{d.name}</span>
-                    <span className="text-xs text-rose">{formatDate(d.next_review_at)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Panel>
-
-          <Panel title="Próximas revisões (SRS)">
-            {upcoming.length === 0 ? (
-              <Empty>Nenhuma próxima revisão.</Empty>
-            ) : (
-              <div className="space-y-2 text-sm">
-                {upcoming.slice(0, 10).map((item) => (
-                  <div key={item.key} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${item.kind === "subject" ? "bg-violet" : "bg-sage"}`} />
-                    <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                    <span className="text-xs text-muted-foreground">{formatDate(item.at)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Panel>
-
-          <Panel title="Prioridade alta">
-            {priority.length === 0 ? (
-              <Empty>Sem prioridade calculada ainda.</Empty>
-            ) : (
-              <div className="space-y-2 text-sm">
-                {priority.map(({ snap, subject }) => (
-                  <Link key={subject.id} to="/assuntos/$id" params={{ id: subject.id }} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary">
-                    <span className="min-w-0 flex-1 truncate">{subject.name}</span>
-                    <span className="text-xs text-muted-foreground">{snap.priority_score}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
+          <Panel title="Revisões" className="p-3">
+            <div className="divide-y divide-border">
+              <SideSection title="Hoje" count={reviewsToday}>
+                <div className="space-y-2 pb-2 text-sm">
+                  {reviewsToday === 0 && <Empty>Nenhuma revisão hoje.</Empty>}
+                  {todaySubjects.map((s) =>
+                    reviewRow({ key: `s:${s.id}`, name: s.name, at: s.next_review_at as string, subjectId: s.id }, false),
+                  )}
+                  {todayDecks.map((d) =>
+                    reviewRow({ key: `d:${d.id}`, name: d.name, at: d.next_review_at as string, subjectId: null }, false),
+                  )}
+                </div>
+              </SideSection>
+              <SideSection title="Atrasadas" count={overdueCount}>
+                <div className="space-y-2 pb-2 text-sm">
+                  {overdueCount === 0 && <Empty>Nada atrasado. 🎉</Empty>}
+                  {overdueSubjects.map((s) =>
+                    reviewRow({ key: `s:${s.id}`, name: s.name, at: s.next_review_at as string, subjectId: s.id }, true),
+                  )}
+                  {overdueDecks.map((d) =>
+                    reviewRow({ key: `d:${d.id}`, name: d.name, at: d.next_review_at as string, subjectId: null }, true),
+                  )}
+                </div>
+              </SideSection>
+              <SideSection title="Próximas" count={upcoming.length}>
+                <div className="space-y-2 pb-2 text-sm">
+                  {upcoming.length === 0 && <Empty>Nenhuma próxima revisão.</Empty>}
+                  {upcoming.slice(0, 12).map((item) => reviewRow(item, false))}
+                </div>
+              </SideSection>
+              <SideSection title="Prioridade alta" count={priority.length} defaultOpen={false}>
+                <div className="space-y-2 pb-2 text-sm">
+                  {priority.length === 0 && <Empty>Sem prioridade calculada ainda.</Empty>}
+                  {priority.map(({ snap, subject }) => (
+                    <Link
+                      key={subject.id}
+                      to="/assuntos/$id"
+                      params={{ id: subject.id }}
+                      search={{ tipo: "questoes" }}
+                      className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary"
+                    >
+                      <span className="min-w-0 flex-1 truncate">{subject.name}</span>
+                      <span className="shrink-0 rounded-full bg-rose/10 px-2 py-0.5 text-xs font-semibold text-rose">
+                        {snap.priority_score}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </SideSection>
+            </div>
           </Panel>
         </div>
       </div>

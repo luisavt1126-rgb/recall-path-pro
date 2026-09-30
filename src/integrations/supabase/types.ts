@@ -403,6 +403,7 @@ export type Database = {
           status: string
           subject_id: string
           subtopic_id: string | null
+          subtopic_name: string | null
           updated_at: string
           user_id: string
           what: string | null
@@ -416,6 +417,7 @@ export type Database = {
           status?: string
           subject_id: string
           subtopic_id?: string | null
+          subtopic_name?: string | null
           updated_at?: string
           user_id: string
           what?: string | null
@@ -429,6 +431,7 @@ export type Database = {
           status?: string
           subject_id?: string
           subtopic_id?: string | null
+          subtopic_name?: string | null
           updated_at?: string
           user_id?: string
           what?: string | null

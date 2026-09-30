@@ -2,16 +2,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { nextStatusOnGoodReview, normalizeStatus, statusForNewError } from "./errorStatus";
 
 export type NewQuestionError = {
-  subtopicId: string | null;
   errorCount: number;
   reason: string;
-  note: string | null;
+  what?: string | null;
+  subtopicId?: string | null;
+  subtopicName?: string | null;
+  /** Status explícito (ativo/em_melhora/resolvido/recorrente). Ausente = automático. */
+  status?: string | null;
 };
 
 /**
  * Reconcilia o status dos erros após registrar uma revisão por questões:
- * - cria um novo erro (se informado) com status "recorrente" quando já existe
- *   erro para o mesmo assunto, senão "ativo";
+ * - cria um ou mais erros (se informados), cada um com status explícito ou
+ *   "recorrente" (quando já existe erro para o mesmo assunto) / "ativo";
  * - se a acurácia (pct) for >= 80%, avança o status dos erros ativos/recorrentes
  *   ("ativo"/"recorrente" -> "em_melhora", "em_melhora" -> "resolvido").
  *
@@ -21,7 +24,7 @@ export async function reconcileErrorsAfterQuestionReview(
   userId: string,
   subjectId: string,
   pct: number,
-  newError: NewQuestionError | null,
+  newErrors: NewQuestionError[] | null,
 ): Promise<void> {
   const { data, error: fetchError } = await supabase
     .from("question_errors")
@@ -32,17 +35,23 @@ export async function reconcileErrorsAfterQuestionReview(
   const existing = data ?? [];
   const nonResolved = existing.filter((e) => normalizeStatus(e.status) !== "resolvido");
 
-  if (newError) {
-    const { error } = await supabase.from("question_errors").insert({
-      user_id: userId,
-      subject_id: subjectId,
-      subtopic_id: newError.subtopicId || null,
-      error_count: newError.errorCount,
-      reason: newError.reason,
-      note: newError.note,
-      status: statusForNewError(nonResolved.length > 0),
-    });
-    if (error) throw error;
+  if (newErrors && newErrors.length > 0) {
+    for (const ne of newErrors) {
+      const status = ne.status
+        ? normalizeStatus(ne.status)
+        : statusForNewError(nonResolved.length > 0);
+      const { error } = await supabase.from("question_errors").insert({
+        user_id: userId,
+        subject_id: subjectId,
+        subtopic_id: ne.subtopicId || null,
+        subtopic_name: ne.subtopicName?.trim() || null,
+        error_count: ne.errorCount,
+        reason: ne.reason,
+        what: ne.what?.trim() || null,
+        status,
+      });
+      if (error) throw error;
+    }
   }
 
   if (pct >= 80) {

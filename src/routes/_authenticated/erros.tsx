@@ -17,6 +17,7 @@ import {
 import { CORE_AREAS } from "@/lib/areas";
 import { ERROR_STATUSES, ERROR_STATUS_LABEL, ERROR_STATUS_WEIGHT, normalizeStatus } from "@/lib/errorStatus";
 import { Panel, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
+import { Combobox } from "@/components/Combobox";
 import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/erros")({
@@ -46,7 +47,7 @@ function ErrosPage() {
   const [areaName, setAreaName] = useState("");
   const [specialtyName, setSpecialtyName] = useState("");
   const [subjectId, setSubjectId] = useState("");
-  const [subtopicId, setSubtopicId] = useState("");
+  const [subtopicName, setSubtopicName] = useState("");
   const [errorCount, setErrorCount] = useState("1");
   const [reason, setReason] = useState<string>(ERROR_REASONS[0]);
   const [note, setNote] = useState("");
@@ -66,7 +67,7 @@ function ErrosPage() {
     setAreaName("");
     setSpecialtyName("");
     setSubjectId("");
-    setSubtopicId("");
+    setSubtopicName("");
     setErrorCount("1");
     setReason(ERROR_REASONS[0]);
     setNote("");
@@ -77,9 +78,24 @@ function ErrosPage() {
   const saveError = useMutation({
     mutationFn: async () => {
       const userId = await requireUserId();
+
+      // Resolve o assunto: usa o existente ou cria um novo na especialidade selecionada.
+      let resolvedSubjectId = subjectId;
+      if (!subjectById.has(subjectId)) {
+        const discipline = disciplines.find((d) => d.name === specialtyName);
+        if (!discipline) throw new Error("Selecione a especialidade.");
+        const { data: created, error: createError } = await supabase
+          .from("subjects")
+          .insert({ user_id: userId, discipline_id: discipline.id, name: subjectId.trim() })
+          .select("id")
+          .single();
+        if (createError) throw createError;
+        resolvedSubjectId = created.id;
+      }
+
       const payload = {
-        subject_id: subjectId,
-        subtopic_id: subtopicId || null,
+        subject_id: resolvedSubjectId,
+        subtopic_name: subtopicName.trim() || null,
         error_count: Number(errorCount) || 1,
         reason,
         note: note.trim() || null,
@@ -93,13 +109,14 @@ function ErrosPage() {
         const { error } = await supabase.from("question_errors").insert({ ...payload, user_id: userId });
         if (error) throw error;
       }
-      void recalculateSubjectPriority(userId, subjectId).catch((err) => {
-        console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
+      void recalculateSubjectPriority(userId, resolvedSubjectId).catch((err) => {
+        console.warn("Falha ao recalcular prioridade do assunto", resolvedSubjectId, err);
       });
     },
     onSuccess: () => {
       resetForm();
       qc.invalidateQueries({ queryKey: ["question_errors"] });
+      qc.invalidateQueries({ queryKey: ["subjects"] });
       toast.success(editingId ? "Erro atualizado" : "Erro registrado");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -187,9 +204,9 @@ function ErrosPage() {
     .sort((a, b) => b.score - a.score)
     .slice(0, 15);
 
-  const errorSubject = (e: { subject_id: string; subtopic_id: string | null }) => {
+  const errorSubject = (e: { subject_id: string; subtopic_name: string | null }) => {
     const subject = subjectById.get(e.subject_id)?.name ?? "—";
-    return e.subtopic_id ? `${subject} › ${e.subtopic_id}` : subject;
+    return e.subtopic_name ? `${subject} › ${e.subtopic_name}` : subject;
   };
 
   return (
@@ -237,7 +254,7 @@ function ErrosPage() {
                 setAreaName(e.target.value);
                 setSpecialtyName("");
                 setSubjectId("");
-                setSubtopicId("");
+                setSubtopicName("");
               }}
               required
             >
@@ -256,7 +273,7 @@ function ErrosPage() {
               onChange={(e) => {
                 setSpecialtyName(e.target.value);
                 setSubjectId("");
-                setSubtopicId("");
+                setSubtopicName("");
               }}
               required
               disabled={!areaName}
@@ -270,33 +287,29 @@ function ErrosPage() {
             </select>
           </Field>
           <Field label="Assunto">
-            <select
-              className={inputClass}
+            <Combobox
               value={subjectId}
-              onChange={(e) => {
-                setSubjectId(e.target.value);
-                setSubtopicId("");
+              onChange={(v) => {
+                setSubjectId(v);
+                setSubtopicName("");
               }}
-              required
-              disabled={!specialtyName}
-            >
-              <option value="">Selecione</option>
-              {filteredSubjects.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              options={filteredSubjects.map((s) => ({ value: s.id, label: s.name }))}
+              placeholder="Buscar ou digitar assunto..."
+              emptyText="Nenhum assunto nesta especialidade."
+              allowCreate
+              createLabel={(q) => `Criar assunto "${q}"`}
+            />
           </Field>
           <Field label="Subassunto (opcional)">
-            <select className={inputClass} value={subtopicId} onChange={(e) => setSubtopicId(e.target.value)} disabled={!subjectId}>
-              <option value="">Nenhum</option>
-              {subtopics.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+            <Combobox
+              value={subtopicName}
+              onChange={setSubtopicName}
+              options={subtopics.map((t) => ({ value: t.name, label: t.name }))}
+              placeholder="Buscar ou digitar subassunto..."
+              emptyText="Nenhum subassunto."
+              allowCreate
+              createLabel={(q) => `Usar "${q}"`}
+            />
           </Field>
           <Field label="Quantidade de erros">
             <input
@@ -392,7 +405,7 @@ function ErrosPage() {
                     setAreaName(area?.area ?? "");
                     setSpecialtyName(discipline?.name ?? "");
                     setSubjectId(e.subject_id);
-                    setSubtopicId(e.subtopic_id ?? "");
+                    setSubtopicName(e.subtopic_name ?? "");
                     setErrorCount(String(e.error_count));
                     setReason(e.reason);
                     setNote(e.note ?? "");
