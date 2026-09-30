@@ -12,17 +12,22 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from "rechar
 import {
   useDecks,
   useDeckSessions,
+  useDisciplines,
   useEvents,
   useProfile,
   useQuestionLogs,
   useStudySessions,
   useSubjects,
   useReviews,
+  useSubjectPrioritySnapshots,
   useTaskCompletions,
   questionStatsBySubject,
   EMPTY_STATS,
   categoryMeta,
+  type Subject,
+  type SubjectPrioritySnapshot,
 } from "@/lib/data";
+import { CORE_AREAS } from "@/lib/areas";
 import { questionPriority } from "@/lib/priority";
 import { Panel, Stat, Empty } from "@/components/bits";
 import { PriorityRankings } from "@/components/PriorityRankings";
@@ -66,6 +71,8 @@ function Dashboard() {
   const { data: reviews = [] } = useReviews();
   const { data: deckSessions = [] } = useDeckSessions();
   const { data: completions = [] } = useTaskCompletions();
+  const { data: snapshots = [] } = useSubjectPrioritySnapshots();
+  const { data: disciplines = [] } = useDisciplines();
 
   const today = new Date();
   const weekStart = startOfWeek(today);
@@ -104,6 +111,49 @@ function Dashboard() {
   const dueToday = ranked.filter(
     (r) => r.subject.next_review_at && isSameDay(new Date(r.subject.next_review_at), today),
   );
+
+  // --- Assuntos críticos (motor v1.2.0) + revisões pendentes ---
+  const subjectById = new Map(subjects.map((s) => [s.id, s]));
+  const disciplineById = new Map(disciplines.map((d) => [d.id, d]));
+  const areaOfSpecialty = (specialtyName: string) =>
+    CORE_AREAS.find((a) => a.specialties.includes(specialtyName))?.area ?? "—";
+  const subjectMeta = (disciplineId: string) => {
+    const specialty = disciplineById.get(disciplineId)?.name ?? "—";
+    return { specialty, area: areaOfSpecialty(specialty) };
+  };
+
+  const criticalSubjects = snapshots
+    .filter((s) => s.error_score > 0)
+    .map((s) => ({ snap: s, subject: subjectById.get(s.subject_id) }))
+    .filter((x): x is { snap: SubjectPrioritySnapshot; subject: Subject } => Boolean(x.subject))
+    .slice(0, 4);
+
+  const pendingReviews: Array<{
+    key: string;
+    name: string;
+    at: string;
+    subjectId: string | null;
+    disciplineId: string | null;
+  }> = [
+    ...subjects
+      .filter((s) => s.next_review_at && new Date(s.next_review_at).getTime() <= today.getTime())
+      .map((s) => ({
+        key: `s:${s.id}`,
+        name: s.name,
+        at: s.next_review_at as string,
+        subjectId: s.id,
+        disciplineId: s.discipline_id,
+      })),
+    ...decks
+      .filter((d) => d.next_review_at && new Date(d.next_review_at).getTime() <= today.getTime())
+      .map((d) => ({
+        key: `d:${d.id}`,
+        name: d.name,
+        at: d.next_review_at as string,
+        subjectId: null,
+        disciplineId: null,
+      })),
+  ].sort((a, b) => a.at.localeCompare(b.at));
 
   const todayEvents = events
     .filter((e) => isSameDay(new Date(e.starts_at), today))
@@ -181,6 +231,90 @@ function Dashboard() {
       <div className="grid grid-cols-2 gap-3">
         <Stat label="Sequência de estudos" value={`🔥 ${studyStreak} dia${studyStreak === 1 ? "" : "s"}`} hint="qualquer atividade registrada" />
         <Stat label="Sem revisão atrasada" value={`✓ ${reviewStreak} dia${reviewStreak === 1 ? "" : "s"}`} hint="dias encerrados com tudo em dia" tone="brand" />
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Panel
+          title="Assuntos críticos"
+          action={
+            <Link to="/erros" className="text-xs font-medium text-brand">
+              Caderno de erros
+            </Link>
+          }
+        >
+          {criticalSubjects.length === 0 ? (
+            <Empty>Sem assuntos críticos no momento. 🎉</Empty>
+          ) : (
+            <div className="space-y-2 text-sm">
+              {criticalSubjects.map(({ snap, subject }) => {
+                const meta = subjectMeta(subject.discipline_id);
+                return (
+                  <Link
+                    key={subject.id}
+                    to="/assuntos/$id"
+                    params={{ id: subject.id }}
+                    search={{ tipo: "questoes" }}
+                    className="flex items-center gap-2 rounded-xl border border-border px-3 py-2.5 hover:bg-secondary"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{subject.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {meta.specialty} · {meta.area}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-rose/10 px-2 py-0.5 text-xs font-semibold text-rose">
+                      {snap.priority_score}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </Panel>
+
+        <Panel
+          title="Revisões para hoje"
+          action={
+            <Link to="/revisoes" className="text-xs font-medium text-brand">
+              Fila completa
+            </Link>
+          }
+        >
+          {pendingReviews.length === 0 ? (
+            <Empty>Nenhuma revisão pendente. Tudo em dia 🎉</Empty>
+          ) : (
+            <div className="space-y-2 text-sm">
+              {pendingReviews.map((r) => {
+                const isOverdue = !isSameDay(new Date(r.at), today);
+                const inner = (
+                  <>
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${isOverdue ? "bg-rose" : "bg-violet"}`} />
+                    <span className="min-w-0 flex-1 truncate">{r.name}</span>
+                    <span className={`shrink-0 text-xs ${isOverdue ? "text-rose" : "text-muted-foreground"}`}>
+                      {formatDate(r.at)}
+                    </span>
+                  </>
+                );
+                const cls = "flex items-center gap-2 rounded-xl border border-border px-3 py-2.5";
+                return r.subjectId ? (
+                  <Link
+                    key={r.key}
+                    to="/assuntos/$id"
+                    params={{ id: r.subjectId }}
+                    search={{ tipo: "questoes" }}
+                    className={`${cls} hover:bg-secondary`}
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  <div key={r.key} className={cls}>
+                    {inner}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Panel>
       </div>
 
       <div className="grid gap-5">
