@@ -7,6 +7,7 @@ export type Profile = Tables["profiles"]["Row"];
 export type Discipline = Tables["disciplines"]["Row"];
 export type Subject = Tables["subjects"]["Row"];
 export type SubjectSubtopic = Tables["subject_subtopics"]["Row"];
+export type SubjectPrioritySnapshot = Tables["subject_priority_snapshots"]["Row"];
 export type StudySession = Tables["study_sessions"]["Row"];
 export type Review = Tables["reviews"]["Row"];
 export type QuestionLog = Tables["question_logs"]["Row"];
@@ -80,6 +81,20 @@ export function useSubjectSubtopics(subjectId?: string) {
       return data as SubjectSubtopic[];
     },
     enabled: Boolean(subjectId),
+  });
+}
+
+export function useSubjectPrioritySnapshots() {
+  return useQuery({
+    queryKey: ["subject_priority_snapshots"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("subject_priority_snapshots")
+        .select("*")
+        .order("priority_score", { ascending: false });
+      if (error) throw error;
+      return data as SubjectPrioritySnapshot[];
+    },
   });
 }
 
