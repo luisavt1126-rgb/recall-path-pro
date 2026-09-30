@@ -33,24 +33,39 @@ export const Route = createFileRoute("/_authenticated/assuntos/")({
   component: SubjectsPage,
 });
 
-/** As 5 grandes áreas fixas da medicina (não editáveis pela interface). */
-const CORE_DISCIPLINES = [
-  "Clínica Médica",
-  "Cirurgia",
-  "Ginecologia e Obstetrícia",
+/** Áreas/especialidades clínicas (lista direta, não hierárquica). */
+const CORE_AREAS = [
+  "Cardiologia",
+  "Endocrinologia",
+  "Infectologia",
+  "Nefrologia",
+  "Gastroenterologia",
+  "Pneumologia",
+  "Reumatologia",
+  "Hematologia",
+  "Neurologia",
+  "Dermatologia",
+  "Psiquiatria",
+  "Oftalmologia",
+  "GO/Obstetrícia",
   "Pediatria",
-  "Medicina Preventiva",
+  "Preventiva",
+  "Cirurgia Abdominal",
+  "Urologia",
+  "Ortopedia",
+  "Neurocirurgia",
+  "Otorrino",
 ] as const;
 
-/** Garante que as 5 grandes áreas existam para o usuário, sem duplicar por nome. */
-function useSeedCoreDisciplines(disciplines: { name: string }[], ready: boolean) {
+/** Garante que as áreas/especialidades existam para o usuário, sem duplicar por nome. */
+function useSeedCoreAreas(disciplines: { name: string }[], ready: boolean) {
   const qc = useQueryClient();
   const ran = useRef(false);
 
   useEffect(() => {
     if (!ready || ran.current) return;
     const existing = new Set(disciplines.map((d) => d.name.trim().toLowerCase()));
-    const missing = CORE_DISCIPLINES.filter((n) => !existing.has(n.toLowerCase()));
+    const missing = CORE_AREAS.filter((n) => !existing.has(n.toLowerCase()));
     if (missing.length === 0) return;
     ran.current = true;
     (async () => {
@@ -69,25 +84,6 @@ function useSeedCoreDisciplines(disciplines: { name: string }[], ready: boolean)
   }, [disciplines, ready, qc]);
 }
 
-/** Coleta um assunto e todos os seus descendentes (subassuntos). */
-function collectSubjectIds(
-  subjects: { id: string; parent_id: string | null }[],
-  rootId: string,
-): string[] {
-  const ids = new Set<string>([rootId]);
-  let added = true;
-  while (added) {
-    added = false;
-    for (const s of subjects) {
-      if (s.parent_id && ids.has(s.parent_id) && !ids.has(s.id)) {
-        ids.add(s.id);
-        added = true;
-      }
-    }
-  }
-  return [...ids];
-}
-
 function SubjectsPage() {
   const qc = useQueryClient();
   const { data: disciplines = [], isSuccess: disciplinesLoaded } = useDisciplines();
@@ -97,7 +93,6 @@ function SubjectsPage() {
 
   const [subjectName, setSubjectName] = useState("");
   const [disciplineId, setDisciplineId] = useState("");
-  const [parentId, setParentId] = useState("");
   const [prep, setPrep] = useState<Record<PrepKey, boolean>>({
     video_watched_at: false,
     summary_ready_at: false,
@@ -110,10 +105,10 @@ function SubjectsPage() {
   const [subtopicsInput, setSubtopicsInput] = useState("");
   const [confirmClear, setConfirmClear] = useState("");
 
-  useSeedCoreDisciplines(disciplines, disciplinesLoaded);
+  useSeedCoreAreas(disciplines, disciplinesLoaded);
 
-  // Somente as 5 grandes áreas ficam disponíveis para novos assuntos.
-  const coreDisciplines = CORE_DISCIPLINES.map((name) =>
+  // Áreas/especialidades disponíveis para novos assuntos.
+  const coreAreas = CORE_AREAS.map((name) =>
     disciplines.find((d) => d.name.trim().toLowerCase() === name.toLowerCase()),
   ).filter((d): d is NonNullable<typeof d> => Boolean(d));
 
@@ -126,7 +121,6 @@ function SubjectsPage() {
         .insert({
           user_id: userId,
           discipline_id: disciplineId,
-          parent_id: parentId || null,
           name: subjectName.trim(),
           video_watched_at: prep.video_watched_at ? now : null,
           summary_ready_at: prep.summary_ready_at ? now : null,
@@ -186,7 +180,6 @@ function SubjectsPage() {
     },
     onSuccess: () => {
       setSubjectName("");
-      setParentId("");
       setPrep({ video_watched_at: false, summary_ready_at: false, deck_ready_at: false });
       setQuestionsDone(false);
       setQuestionsTotal("");
@@ -201,19 +194,17 @@ function SubjectsPage() {
 
   const deleteSubject = useMutation({
     mutationFn: async (subjectId: string) => {
-      const ids = collectSubjectIds(subjects, subjectId);
-
-      const { data: decks } = await supabase.from("anki_decks").select("id").in("subject_id", ids);
+      const { data: decks } = await supabase.from("anki_decks").select("id").eq("subject_id", subjectId);
       const deckIds = (decks ?? []).map((d) => d.id);
       if (deckIds.length > 0) {
         await supabase.from("deck_sessions").delete().in("deck_id", deckIds);
       }
-      await supabase.from("anki_decks").delete().in("subject_id", ids);
-      await supabase.from("study_sessions").delete().in("subject_id", ids);
-      await supabase.from("question_logs").delete().in("subject_id", ids);
-      await supabase.from("reviews").delete().in("subject_id", ids);
-      await supabase.from("subject_priority_snapshots").delete().in("subject_id", ids);
-      const { error } = await supabase.from("subjects").delete().in("id", ids);
+      await supabase.from("anki_decks").delete().eq("subject_id", subjectId);
+      await supabase.from("study_sessions").delete().eq("subject_id", subjectId);
+      await supabase.from("question_logs").delete().eq("subject_id", subjectId);
+      await supabase.from("reviews").delete().eq("subject_id", subjectId);
+      await supabase.from("subject_priority_snapshots").delete().eq("subject_id", subjectId);
+      const { error } = await supabase.from("subjects").delete().eq("id", subjectId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -274,44 +265,30 @@ function SubjectsPage() {
             }}
             className="grid gap-3 sm:grid-cols-2"
           >
-            <Field label="Grande área">
-              <select
-                className={inputClass}
-                value={disciplineId}
-                onChange={(e) => setDisciplineId(e.target.value)}
-                required
-              >
-                <option value="">Selecione</option>
-                {coreDisciplines.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Especialidade (opcional)">
-              <select
-                className={inputClass}
-                value={parentId}
-                onChange={(e) => setParentId(e.target.value)}
-              >
-                <option value="">Nenhum</option>
-                {subjects
-                  .filter((s) => s.discipline_id === disciplineId && !s.parent_id)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
+            <div className="sm:col-span-2">
+              <Field label="Área/Especialidade">
+                <select
+                  className={inputClass}
+                  value={disciplineId}
+                  onChange={(e) => setDisciplineId(e.target.value)}
+                  required
+                >
+                  <option value="">Selecione</option>
+                  {coreAreas.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
                     </option>
                   ))}
-              </select>
-            </Field>
+                </select>
+              </Field>
+            </div>
             <div className="sm:col-span-2">
-              <Field label="Nome">
+              <Field label="Assunto">
                 <input
                   className={inputClass}
                   value={subjectName}
                   onChange={(e) => setSubjectName(e.target.value)}
-                  placeholder="Ex.: Insuficiência cardíaca"
+                  placeholder="Ex.: Fibrilação Atrial"
                 />
               </Field>
             </div>
@@ -398,30 +375,18 @@ function SubjectsPage() {
       )}
 
       {subjects.length > 0 && disciplines.map((discipline) => {
-        const roots = subjects.filter(
-          (s) => s.discipline_id === discipline.id && !s.parent_id,
-        );
+        const subjectsInArea = subjects.filter((s) => s.discipline_id === discipline.id);
         return (
           <Panel key={discipline.id} title={discipline.name}>
-            {roots.length === 0 ? (
+            {subjectsInArea.length === 0 ? (
               <Empty>Nenhum assunto ainda.</Empty>
             ) : (
               <div className="space-y-2">
-                {roots.map((subject) => {
-                  const children = subjects.filter((s) => s.parent_id === subject.id);
-                  return (
-                    <div key={subject.id} className="rounded-xl border border-border p-3">
-                      <SubjectRow subjectId={subject.id} />
-                      {children.length > 0 && (
-                        <div className="mt-2 space-y-2 border-l border-border pl-3">
-                          {children.map((child) => (
-                            <SubjectRow key={child.id} subjectId={child.id} nested />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {subjectsInArea.map((subject) => (
+                  <div key={subject.id} className="rounded-xl border border-border p-3">
+                    <SubjectRow subjectId={subject.id} />
+                  </div>
+                ))}
               </div>
             )}
           </Panel>
@@ -431,7 +396,7 @@ function SubjectsPage() {
       <Panel title="Limpar assuntos">
         <p className="text-sm text-muted-foreground">
           Apaga todos os assuntos e seus dados vinculados (revisões, questões, sessões,
-          baralhos e snapshots). As 5 grandes áreas permanecem. Esta ação não pode ser desfeita.
+          baralhos e snapshots). As áreas/especialidades permanecem. Esta ação não pode ser desfeita.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <input
@@ -454,11 +419,10 @@ function SubjectsPage() {
     </>
   );
 
-  function SubjectRow({ subjectId, nested = false }: { subjectId: string; nested?: boolean }) {
+  function SubjectRow({ subjectId }: { subjectId: string }) {
     const subject = subjects.find((s) => s.id === subjectId)!;
     const s = stats.get(subjectId) ?? EMPTY_STATS;
     const mastery = displayMastery(subject, subjects);
-    const hasChildren = subjects.some((c) => c.parent_id === subject.id);
     return (
       <div className="flex items-start gap-2">
         <Link
@@ -467,7 +431,7 @@ function SubjectsPage() {
           className="block min-w-0 flex-1 rounded-lg px-1 py-1 transition-colors hover:bg-secondary"
         >
           <div className="flex items-start justify-between gap-2">
-            <p className={`font-medium ${nested ? "text-sm" : ""}`}>{subject.name}</p>
+            <p className="font-medium">{subject.name}</p>
             <div className="flex shrink-0 items-center gap-2">
               <PrepIcons subject={subject} />
               <PriorityTag level={levelOf(subject.id)} />
@@ -481,7 +445,7 @@ function SubjectsPage() {
               />
             </div>
             <p className="text-[11px] text-muted-foreground">
-              domínio {mastery}%{hasChildren ? " (média dos subtópicos)" : ""} · {subject.review_count} revisões · próxima{" "}
+              domínio {mastery}% · {subject.review_count} revisões · próxima{" "}
               {formatDate(subject.next_review_at)}
               {s.accuracy !== null && ` · questões ${s.accuracy}%`}
             </p>
