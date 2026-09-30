@@ -9,6 +9,7 @@ import {
   nudgeMasteryFromQuestions,
 } from "@/lib/actions";
 import { useDisciplines, useQuestionLogs, useSubjects } from "@/lib/data";
+import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass } from "@/components/bits";
 import { formatDate } from "@/lib/format";
 
@@ -59,6 +60,13 @@ function QuestionsPage() {
         if (t > 0) await nudgeMasteryFromQuestions(subjectId, (Number(correct) / t) * 100);
       }
 
+      if (subjectId) {
+        try {
+          await recalculateSubjectPriority(userId, subjectId);
+        } catch (err) {
+          console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries();

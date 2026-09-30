@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { requireUserId, useRateDeck } from "@/lib/actions";
+import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
 import {
   useDecks,
   useDeckSessions,
@@ -99,8 +100,10 @@ function DecksPage() {
     let created = 0;
     let updated = 0;
     let sessions = 0;
+    const touched = new Set<string>();
     for (const row of rows) {
       const existing = decks.find((deck) => normalize(deck.anki_name ?? deck.name) === normalize(row.name));
+      if (existing?.subject_id) touched.add(existing.subject_id);
       const patch = {
         anki_name: row.name,
         cards_due: row.due,
@@ -137,6 +140,13 @@ function DecksPage() {
           if (error) throw error;
           sessions += 1;
         }
+      }
+    }
+    for (const subjectId of touched) {
+      try {
+        await recalculateSubjectPriority(userId, subjectId);
+      } catch (err) {
+        console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
       }
     }
     qc.invalidateQueries();
