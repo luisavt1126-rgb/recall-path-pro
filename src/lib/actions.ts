@@ -14,7 +14,7 @@ export async function requireUserId() {
 export function useRateSubject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ subject, rating }: { subject: Subject; rating: Rating }) => {
+    mutationFn: async ({ subject, rating, minutes, activityType }: { subject: Subject; rating: Rating; minutes?: number; activityType?: string }) => {
       const userId = await requireUserId();
       const state: SrsState = {
         interval_days: Number(subject.interval_days),
@@ -54,6 +54,17 @@ export function useRateSubject() {
         })
         .eq("id", subject.id);
       if (error) throw error;
+
+      if (minutes && minutes > 0) {
+        const { error: sessionError } = await supabase.from("study_sessions").insert({
+          user_id: userId,
+          subject_id: subject.id,
+          activity_type: activityType ?? "revisao",
+          minutes,
+          started_at: now,
+        });
+        if (sessionError) throw sessionError;
+      }
 
       void recalculateSubjectPriority(userId, subject.id).catch((err) => {
         console.warn("Falha ao recalcular prioridade do assunto", subject.id, err);
