@@ -42,54 +42,6 @@ const CORE_DISCIPLINES = [
   "Medicina Preventiva",
 ] as const;
 
-/** Especialidades pré-cadastradas como assuntos raiz de cada grande área. */
-const CORE_SPECIALTIES: Record<(typeof CORE_DISCIPLINES)[number], string[]> = {
-  "Clínica Médica": [
-    "Cardiologia",
-    "Pneumologia",
-    "Gastroenterologia",
-    "Endocrinologia",
-    "Nefrologia",
-    "Neurologia",
-    "Hematologia",
-    "Reumatologia",
-    "Infectologia",
-    "Dermatologia",
-    "Psiquiatria",
-    "Geriatria",
-  ],
-  Cirurgia: [
-    "Cirurgia Geral",
-    "Cirurgia do Trauma",
-    "Urologia",
-    "Ortopedia",
-    "Cirurgia Vascular",
-    "Oftalmologia",
-    "Otorrinolaringologia",
-    "Anestesiologia",
-  ],
-  "Ginecologia e Obstetrícia": [
-    "Obstetrícia",
-    "Ginecologia",
-    "Pré-natal",
-    "Planejamento Familiar",
-  ],
-  Pediatria: [
-    "Neonatologia",
-    "Puericultura",
-    "Vacinação",
-    "Emergências Pediátricas",
-    "Doenças Infecciosas na Infância",
-  ],
-  "Medicina Preventiva": [
-    "Epidemiologia",
-    "SUS/Políticas Públicas",
-    "Bioética",
-    "Saúde da Família",
-    "Vigilância em Saúde",
-  ],
-};
-
 /** Garante que as 5 grandes áreas existam para o usuário, sem duplicar por nome. */
 function useSeedCoreDisciplines(disciplines: { name: string }[], ready: boolean) {
   const qc = useQueryClient();
@@ -117,60 +69,29 @@ function useSeedCoreDisciplines(disciplines: { name: string }[], ready: boolean)
   }, [disciplines, ready, qc]);
 }
 
-/**
- * Cria as especialidades padrão como assuntos raiz de cada grande área,
- * sem duplicar nomes já existentes na mesma disciplina.
- */
-function useSeedCoreSpecialties(
-  disciplines: { id: string; name: string }[],
-  subjects: { name: string; discipline_id: string; parent_id: string | null }[],
-  ready: boolean,
-) {
-  const qc = useQueryClient();
-  const ran = useRef(false);
-
-  useEffect(() => {
-    if (!ready || ran.current) return;
-    const rows: { discipline_id: string; name: string }[] = [];
-    for (const area of CORE_DISCIPLINES) {
-      const discipline = disciplines.find(
-        (d) => d.name.trim().toLowerCase() === area.toLowerCase(),
-      );
-      if (!discipline) return; // espera as disciplinas serem criadas
-      const existing = new Set(
-        subjects
-          .filter((s) => s.discipline_id === discipline.id)
-          .map((s) => s.name.trim().toLowerCase()),
-      );
-      for (const name of CORE_SPECIALTIES[area]) {
-        if (!existing.has(name.toLowerCase())) {
-          rows.push({ discipline_id: discipline.id, name });
-        }
+/** Coleta um assunto e todos os seus descendentes (subassuntos). */
+function collectSubjectIds(
+  subjects: { id: string; parent_id: string | null }[],
+  rootId: string,
+): string[] {
+  const ids = new Set<string>([rootId]);
+  let added = true;
+  while (added) {
+    added = false;
+    for (const s of subjects) {
+      if (s.parent_id && ids.has(s.parent_id) && !ids.has(s.id)) {
+        ids.add(s.id);
+        added = true;
       }
     }
-    if (rows.length === 0) return;
-    ran.current = true;
-    (async () => {
-      try {
-        const userId = await requireUserId();
-        const { error } = await supabase
-          .from("subjects")
-          .insert(rows.map((r) => ({ ...r, user_id: userId, parent_id: null })));
-        if (error) throw error;
-        qc.invalidateQueries({ queryKey: ["subjects"] });
-      } catch (e) {
-        ran.current = false;
-        toast.error((e as Error).message);
-      }
-    })();
-  }, [disciplines, subjects, ready, qc]);
+  }
+  return [...ids];
 }
-
 
 function SubjectsPage() {
   const qc = useQueryClient();
   const { data: disciplines = [], isSuccess: disciplinesLoaded } = useDisciplines();
-  const { data: subjects = [], isSuccess: subjectsLoaded } = useSubjects();
+  const { data: subjects = [] } = useSubjects();
   const { data: logs = [] } = useQuestionLogs();
   const stats = questionStatsBySubject(logs);
 
@@ -186,9 +107,9 @@ function SubjectsPage() {
   const [questionsTotal, setQuestionsTotal] = useState("");
   const [questionsCorrect, setQuestionsCorrect] = useState("");
   const [questionsMinutes, setQuestionsMinutes] = useState("");
+  const [confirmClear, setConfirmClear] = useState("");
 
   useSeedCoreDisciplines(disciplines, disciplinesLoaded);
-  useSeedCoreSpecialties(disciplines, subjects, disciplinesLoaded && subjectsLoaded);
 
   // Somente as 5 grandes áreas ficam disponíveis para novos assuntos.
   const coreDisciplines = CORE_DISCIPLINES.map((name) =>
@@ -265,6 +186,50 @@ function SubjectsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteSubject = useMutation({
+    mutationFn: async (subjectId: string) => {
+      const ids = collectSubjectIds(subjects, subjectId);
+
+      const { data: decks } = await supabase.from("anki_decks").select("id").in("subject_id", ids);
+      const deckIds = (decks ?? []).map((d) => d.id);
+      if (deckIds.length > 0) {
+        await supabase.from("deck_sessions").delete().in("deck_id", deckIds);
+      }
+      await supabase.from("anki_decks").delete().in("subject_id", ids);
+      await supabase.from("study_sessions").delete().in("subject_id", ids);
+      await supabase.from("question_logs").delete().in("subject_id", ids);
+      await supabase.from("reviews").delete().in("subject_id", ids);
+      await supabase.from("subject_priority_snapshots").delete().in("subject_id", ids);
+      const { error } = await supabase.from("subjects").delete().in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries();
+      toast.success("Assunto excluído");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const clearAllSubjects = useMutation({
+    mutationFn: async () => {
+      const userId = await requireUserId();
+      await supabase.from("deck_sessions").delete().eq("user_id", userId);
+      await supabase.from("anki_decks").delete().eq("user_id", userId);
+      await supabase.from("study_sessions").delete().eq("user_id", userId);
+      await supabase.from("question_logs").delete().eq("user_id", userId);
+      await supabase.from("reviews").delete().eq("user_id", userId);
+      await supabase.from("subject_priority_snapshots").delete().eq("user_id", userId);
+      const { error } = await supabase.from("subjects").delete().eq("user_id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setConfirmClear("");
+      qc.invalidateQueries();
+      toast.success("Todos os assuntos foram removidos");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const levelOf = (subjectId: string) => {
     const subject = subjects.find((s) => s.id === subjectId)!;
     const s = stats.get(subjectId) ?? EMPTY_STATS;
@@ -311,7 +276,7 @@ function SubjectsPage() {
                 ))}
               </select>
             </Field>
-            <Field label="Assunto pai (opcional)">
+            <Field label="Especialidade (opcional)">
               <select
                 className={inputClass}
                 value={parentId}
@@ -435,6 +400,30 @@ function SubjectsPage() {
           </Panel>
         );
       })}
+
+      <Panel title="Limpar assuntos">
+        <p className="text-sm text-muted-foreground">
+          Apaga todos os assuntos e seus dados vinculados (revisões, questões, sessões,
+          baralhos e snapshots). As 5 grandes áreas permanecem. Esta ação não pode ser desfeita.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <input
+            className={inputClass}
+            value={confirmClear}
+            onChange={(e) => setConfirmClear(e.target.value)}
+            placeholder="Digite LIMPAR para confirmar"
+            aria-label="Digite LIMPAR para confirmar"
+          />
+          <button
+            type="button"
+            className={buttonClass}
+            disabled={confirmClear !== "LIMPAR" || clearAllSubjects.isPending}
+            onClick={() => clearAllSubjects.mutate()}
+          >
+            Limpar todos os assuntos
+          </button>
+        </div>
+      </Panel>
     </>
   );
 
@@ -444,32 +433,48 @@ function SubjectsPage() {
     const mastery = displayMastery(subject, subjects);
     const hasChildren = subjects.some((c) => c.parent_id === subject.id);
     return (
-      <Link
-        to="/assuntos/$id"
-        params={{ id: subject.id }}
-        className="block rounded-lg px-1 py-1 transition-colors hover:bg-secondary"
-      >
-        <div className="flex items-start justify-between gap-2">
-          <p className={`font-medium ${nested ? "text-sm" : ""}`}>{subject.name}</p>
-          <div className="flex shrink-0 items-center gap-2">
-            <PrepIcons subject={subject} />
-            <PriorityTag level={levelOf(subject.id)} />
+      <div className="flex items-start gap-2">
+        <Link
+          to="/assuntos/$id"
+          params={{ id: subject.id }}
+          className="block min-w-0 flex-1 rounded-lg px-1 py-1 transition-colors hover:bg-secondary"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className={`font-medium ${nested ? "text-sm" : ""}`}>{subject.name}</p>
+            <div className="flex shrink-0 items-center gap-2">
+              <PrepIcons subject={subject} />
+              <PriorityTag level={levelOf(subject.id)} />
+            </div>
           </div>
-        </div>
-        <div className="mt-1.5 flex items-center gap-3">
-          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-secondary">
-            <div
-              className="h-full rounded-full bg-brand"
-              style={{ width: `${mastery}%` }}
-            />
+          <div className="mt-1.5 flex items-center gap-3">
+            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-secondary">
+              <div
+                className="h-full rounded-full bg-brand"
+                style={{ width: `${mastery}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              domínio {mastery}%{hasChildren ? " (média dos subtópicos)" : ""} · {subject.review_count} revisões · próxima{" "}
+              {formatDate(subject.next_review_at)}
+              {s.accuracy !== null && ` · questões ${s.accuracy}%`}
+            </p>
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            domínio {mastery}%{hasChildren ? " (média dos subtópicos)" : ""} · {subject.review_count} revisões · próxima{" "}
-            {formatDate(subject.next_review_at)}
-            {s.accuracy !== null && ` · questões ${s.accuracy}%`}
-          </p>
-        </div>
-      </Link>
+        </Link>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm(`Excluir "${subject.name}" e todos os dados vinculados?`)) {
+              deleteSubject.mutate(subject.id);
+            }
+          }}
+          disabled={deleteSubject.isPending}
+          className="mt-1 shrink-0 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground hover:text-rose"
+          title="Excluir assunto"
+          aria-label={`Excluir ${subject.name}`}
+        >
+          Excluir
+        </button>
+      </div>
     );
   }
 }
