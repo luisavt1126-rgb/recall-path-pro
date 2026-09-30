@@ -143,11 +143,9 @@ function DecksPage() {
       }
     }
     for (const subjectId of touched) {
-      try {
-        await recalculateSubjectPriority(userId, subjectId);
-      } catch (err) {
+      void recalculateSubjectPriority(userId, subjectId).catch((err) => {
         console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
-      }
+      });
     }
     qc.invalidateQueries();
     toast.success(`${created} criado(s), ${updated} atualizado(s) e ${sessions} sessão(ões) importada(s)`);

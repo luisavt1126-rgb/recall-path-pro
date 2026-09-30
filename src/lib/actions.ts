@@ -55,11 +55,9 @@ export function useRateSubject() {
         .eq("id", subject.id);
       if (error) throw error;
 
-      try {
-        await recalculateSubjectPriority(userId, subject.id);
-      } catch (err) {
+      void recalculateSubjectPriority(userId, subject.id).catch((err) => {
         console.warn("Falha ao recalcular prioridade do assunto", subject.id, err);
-      }
+      });
 
       return next;
     },
@@ -113,11 +111,9 @@ export function useLogStudySession() {
       }
 
       if (input.subject_id) {
-        try {
-          await recalculateSubjectPriority(userId, input.subject_id);
-        } catch (err) {
+        void recalculateSubjectPriority(userId, input.subject_id).catch((err) => {
           console.warn("Falha ao recalcular prioridade do assunto", input.subject_id, err);
-        }
+        });
       }
     },
     onSuccess: () => {
@@ -178,11 +174,9 @@ export function useSetSubjectPrep() {
       if (error) throw error;
       if (done) await startSubjectCycle(subject.id, now);
 
-      try {
-        await recalculateSubjectPriority(subject.user_id, subject.id);
-      } catch (err) {
+      void recalculateSubjectPriority(subject.user_id, subject.id).catch((err) => {
         console.warn("Falha ao recalcular prioridade do assunto", subject.id, err);
-      }
+      });
 
       return done;
     },
@@ -219,11 +213,9 @@ export function useSetSubjectPrepDate() {
       if (error) throw error;
       await startSubjectCycle(subject.id, iso);
 
-      try {
-        await recalculateSubjectPriority(subject.user_id, subject.id);
-      } catch (err) {
+      void recalculateSubjectPriority(subject.user_id, subject.id).catch((err) => {
         console.warn("Falha ao recalcular prioridade do assunto", subject.id, err);
-      }
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["subjects"] });
@@ -337,11 +329,9 @@ export function useRateDeck() {
       }
 
       if (deck.subject_id) {
-        try {
-          await recalculateSubjectPriority(userId, deck.subject_id);
-        } catch (err) {
+        void recalculateSubjectPriority(userId, deck.subject_id).catch((err) => {
           console.warn("Falha ao recalcular prioridade do assunto", deck.subject_id, err);
-        }
+        });
       }
 
       return { interval, rating };

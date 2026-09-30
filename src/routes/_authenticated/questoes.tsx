@@ -61,11 +61,9 @@ function QuestionsPage() {
       }
 
       if (subjectId) {
-        try {
-          await recalculateSubjectPriority(userId, subjectId);
-        } catch (err) {
+        void recalculateSubjectPriority(userId, subjectId).catch((err) => {
           console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
-        }
+        });
       }
     },
     onSuccess: () => {
