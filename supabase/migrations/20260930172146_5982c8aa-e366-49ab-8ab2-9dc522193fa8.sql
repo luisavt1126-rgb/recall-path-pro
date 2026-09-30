@@ -24,3 +24,9 @@ CREATE POLICY "own question errors" ON public.question_errors
 CREATE TRIGGER update_question_errors_updated_at
   BEFORE UPDATE ON public.question_errors
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+CREATE INDEX IF NOT EXISTS question_errors_user_subject_idx
+  ON public.question_errors (user_id, subject_id);
+
+CREATE INDEX IF NOT EXISTS question_errors_user_created_idx
+  ON public.question_errors (user_id, created_at DESC);
