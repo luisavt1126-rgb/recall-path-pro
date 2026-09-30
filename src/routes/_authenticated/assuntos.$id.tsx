@@ -9,9 +9,9 @@ import {
   useStudySessions,
   useSubjects,
 } from "@/lib/data";
-import { RATING_LABEL, RATINGS, type Rating } from "@/lib/srs";
-import { useRateSubject } from "@/lib/actions";
-import { Panel, Stat, Empty, buttonClass, ghostButtonClass } from "@/components/bits";
+import { RATING_LABEL, type Rating } from "@/lib/srs";
+import { Panel, Stat, Empty } from "@/components/bits";
+import { ReviewRecorder } from "@/components/ReviewRecorder";
 import { PrepChecklist } from "@/components/SubjectPrep";
 import { formatDate, formatDateTime, formatHours } from "@/lib/format";
 
@@ -37,7 +37,6 @@ function SubjectDetail() {
   const { data: sessions = [] } = useStudySessions();
   const { data: logs = [] } = useQuestionLogs();
   const { data: reviews = [] } = useReviews(id);
-  const rate = useRateSubject();
 
   const subject = subjects.find((s) => s.id === id);
   if (!subject) return <Empty>Assunto não encontrado.</Empty>;
@@ -105,20 +104,11 @@ function SubjectDetail() {
 
       <Panel title="Registrar revisão">
         <p className="text-sm text-muted-foreground">
-          Como foi a recuperação deste conteúdo? O intervalo é recalculado para manter cerca
-          de 90% de retenção.
+          Como foi a recuperação deste conteúdo? Escolha o tipo de revisão e registre o
+          desempenho real. O intervalo é recalculado para manter cerca de 90% de retenção.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {RATINGS.map((rating) => (
-            <button
-              key={rating}
-              disabled={rate.isPending}
-              onClick={() => rate.mutate({ subject, rating })}
-              className={rating === "bom" ? buttonClass : ghostButtonClass}
-            >
-              {RATING_LABEL[rating]}
-            </button>
-          ))}
+        <div className="mt-3">
+          <ReviewRecorder subject={subject} />
         </div>
       </Panel>
 
