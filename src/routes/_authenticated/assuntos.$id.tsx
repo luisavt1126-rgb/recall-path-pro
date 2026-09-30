@@ -70,8 +70,7 @@ function SubjectDetail() {
         </Link>
         <h1 className="mt-2 font-display text-2xl font-semibold">{subject.name}</h1>
         <p className="text-sm text-muted-foreground">
-          {discipline?.name ?? "Sem disciplina"} · incidência em provas{" "}
-          {subject.exam_incidence}/5
+          {discipline?.name ?? "Sem disciplina"}
         </p>
       </div>
 

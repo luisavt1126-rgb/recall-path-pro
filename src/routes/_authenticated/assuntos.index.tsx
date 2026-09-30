@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { requireUserId } from "@/lib/actions";
+import { requireUserId, startSubjectCycle } from "@/lib/actions";
+import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
 import {
   EMPTY_STATS,
   questionStatsBySubject,
@@ -14,7 +15,7 @@ import {
 } from "@/lib/data";
 import { questionPriority } from "@/lib/priority";
 import { Panel, PriorityTag, Field, inputClass, buttonClass, Empty } from "@/components/bits";
-import { PrepIcons } from "@/components/SubjectPrep";
+import { PrepIcons, PREP_ITEMS, type PrepKey } from "@/components/SubjectPrep";
 import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/assuntos/")({
@@ -176,7 +177,12 @@ function SubjectsPage() {
   const [subjectName, setSubjectName] = useState("");
   const [disciplineId, setDisciplineId] = useState("");
   const [parentId, setParentId] = useState("");
-  const [incidence, setIncidence] = useState(3);
+  const [prep, setPrep] = useState<Record<PrepKey, boolean>>({
+    video_watched_at: false,
+    summary_ready_at: false,
+    deck_ready_at: false,
+  });
+  const [studiedToday, setStudiedToday] = useState(false);
 
   useSeedCoreDisciplines(disciplines, disciplinesLoaded);
   useSeedCoreSpecialties(disciplines, subjects, disciplinesLoaded && subjectsLoaded);
@@ -189,18 +195,39 @@ function SubjectsPage() {
   const addSubject = useMutation({
     mutationFn: async () => {
       const userId = await requireUserId();
-      const { error } = await supabase.from("subjects").insert({
-        user_id: userId,
-        discipline_id: disciplineId,
-        parent_id: parentId || null,
-        name: subjectName.trim(),
-        exam_incidence: incidence,
-      });
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("subjects")
+        .insert({
+          user_id: userId,
+          discipline_id: disciplineId,
+          parent_id: parentId || null,
+          name: subjectName.trim(),
+          video_watched_at: prep.video_watched_at ? now : null,
+          summary_ready_at: prep.summary_ready_at ? now : null,
+          deck_ready_at: prep.deck_ready_at ? now : null,
+          last_studied_at: studiedToday ? now : null,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+      const id = data.id;
+
+      if (prep.video_watched_at || prep.summary_ready_at || prep.deck_ready_at || studiedToday) {
+        await startSubjectCycle(id, now);
+      }
+
+      void recalculateSubjectPriority(userId, id).catch((err) => {
+        console.warn("Falha ao recalcular prioridade do assunto", id, err);
+      });
+
+      return id;
     },
     onSuccess: () => {
       setSubjectName("");
       setParentId("");
+      setPrep({ video_watched_at: false, summary_ready_at: false, deck_ready_at: false });
+      setStudiedToday(false);
       qc.invalidateQueries();
       toast.success("Assunto criado");
     },
@@ -260,24 +287,45 @@ function SubjectsPage() {
                   ))}
               </select>
             </Field>
-            <Field label="Nome">
-              <input
-                className={inputClass}
-                value={subjectName}
-                onChange={(e) => setSubjectName(e.target.value)}
-                placeholder="Ex.: Insuficiência cardíaca"
-              />
-            </Field>
-            <Field label={`Incidência em provas: ${incidence}`}>
-              <input
-                type="range"
-                min={1}
-                max={5}
-                value={incidence}
-                onChange={(e) => setIncidence(Number(e.target.value))}
-                className="w-full accent-[var(--brand)]"
-              />
-            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Nome">
+                <input
+                  className={inputClass}
+                  value={subjectName}
+                  onChange={(e) => setSubjectName(e.target.value)}
+                  placeholder="Ex.: Insuficiência cardíaca"
+                />
+              </Field>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs font-medium text-muted-foreground">Preparo inicial (opcional)</p>
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-2">
+                {PREP_ITEMS.map((item) => (
+                  <label key={item.key} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={prep[item.key]}
+                      onChange={(e) =>
+                        setPrep((p) => ({ ...p, [item.key]: e.target.checked }))
+                      }
+                      className="h-4 w-4 accent-[var(--brand)]"
+                    />
+                    <span>
+                      {item.icon} {item.label}
+                    </span>
+                  </label>
+                ))}
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={studiedToday}
+                    onChange={(e) => setStudiedToday(e.target.checked)}
+                    className="h-4 w-4 accent-[var(--brand)]"
+                  />
+                  <span>📚 Já estudei hoje</span>
+                </label>
+              </div>
+            </div>
             <div className="sm:col-span-2">
               <button className={buttonClass}>Adicionar assunto</button>
             </div>
