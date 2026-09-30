@@ -417,7 +417,7 @@ function SubjectsPage() {
           <button
             type="button"
             className={buttonClass}
-            disabled={confirmClear !== "LIMPAR" || clearAllSubjects.isPending}
+            disabled={confirmClear.trim().toUpperCase() !== "LIMPAR" || clearAllSubjects.isPending}
             onClick={() => clearAllSubjects.mutate()}
           >
             Limpar todos os assuntos
