@@ -6,6 +6,7 @@ type Tables = Database["public"]["Tables"];
 export type Profile = Tables["profiles"]["Row"];
 export type Discipline = Tables["disciplines"]["Row"];
 export type Subject = Tables["subjects"]["Row"];
+export type SubjectSubtopic = Tables["subject_subtopics"]["Row"];
 export type StudySession = Tables["study_sessions"]["Row"];
 export type Review = Tables["reviews"]["Row"];
 export type QuestionLog = Tables["question_logs"]["Row"];
@@ -62,6 +63,23 @@ export function useSubjects() {
       if (error) throw error;
       return data as Subject[];
     },
+  });
+}
+
+export function useSubjectSubtopics(subjectId?: string) {
+  return useQuery({
+    queryKey: ["subject_subtopics", subjectId ?? "all"],
+    queryFn: async () => {
+      let query = supabase
+        .from("subject_subtopics")
+        .select("*")
+        .order("created_at");
+      if (subjectId) query = query.eq("subject_id", subjectId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as SubjectSubtopic[];
+    },
+    enabled: Boolean(subjectId),
   });
 }
 

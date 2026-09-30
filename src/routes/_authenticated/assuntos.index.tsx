@@ -107,6 +107,7 @@ function SubjectsPage() {
   const [questionsTotal, setQuestionsTotal] = useState("");
   const [questionsCorrect, setQuestionsCorrect] = useState("");
   const [questionsMinutes, setQuestionsMinutes] = useState("");
+  const [subtopicsInput, setSubtopicsInput] = useState("");
   const [confirmClear, setConfirmClear] = useState("");
 
   useSeedCoreDisciplines(disciplines, disciplinesLoaded);
@@ -135,6 +136,17 @@ function SubjectsPage() {
         .single();
       if (error) throw error;
       const id = data.id;
+
+      const subtopicNames = subtopicsInput
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (subtopicNames.length > 0) {
+        const { error: subtopicsError } = await supabase.from("subject_subtopics").insert(
+          subtopicNames.map((n) => ({ user_id: userId, subject_id: id, name: n })),
+        );
+        if (subtopicsError) throw subtopicsError;
+      }
 
       const hasContact =
         prep.video_watched_at || prep.summary_ready_at || prep.deck_ready_at || questionsDone;
@@ -180,6 +192,7 @@ function SubjectsPage() {
       setQuestionsTotal("");
       setQuestionsCorrect("");
       setQuestionsMinutes("");
+      setSubtopicsInput("");
       qc.invalidateQueries();
       toast.success("Assunto criado");
     },
@@ -360,6 +373,16 @@ function SubjectsPage() {
                   />
                 </div>
               )}
+            </div>
+            <div className="sm:col-span-2">
+              <Field label="Subassuntos (separados por vírgula)">
+                <input
+                  className={inputClass}
+                  value={subtopicsInput}
+                  onChange={(e) => setSubtopicsInput(e.target.value)}
+                  placeholder="Ex.: DM em adultos, Medicamentos, Insulinoterapia"
+                />
+              </Field>
             </div>
             <div className="sm:col-span-2">
               <button className={buttonClass}>Adicionar assunto</button>

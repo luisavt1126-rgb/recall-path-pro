@@ -13,6 +13,7 @@ import { RATING_LABEL, type Rating } from "@/lib/srs";
 import { Panel, Stat, Empty } from "@/components/bits";
 import { ReviewRecorder } from "@/components/ReviewRecorder";
 import { PrepChecklist } from "@/components/SubjectPrep";
+import { SubjectSubtopics } from "@/components/SubjectSubtopics";
 import { formatDate, formatDateTime, formatHours } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/assuntos/$id")({
@@ -100,6 +101,13 @@ function SubjectDetail() {
           primeiro estudo deste assunto.
         </p>
         <PrepChecklist subject={subject} />
+      </Panel>
+
+      <Panel title="Subassuntos">
+        <p className="mb-3 text-sm text-muted-foreground">
+          Organize este assunto em subassuntos (apenas organizacional, sem revisão própria).
+        </p>
+        <SubjectSubtopics subject={subject} />
       </Panel>
 
       <Panel title="Registrar revisão">
