@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,17 @@ import { ERROR_STATUSES, ERROR_STATUS_LABEL, ERROR_STATUS_WEIGHT, normalizeStatu
 import { Panel, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { Combobox } from "@/components/Combobox";
 import { formatDate } from "@/lib/format";
+
+type ErrorItemDraft = { reason: string; what: string; subtopicName: string };
+
+const emptyErrorItem = (): ErrorItemDraft => ({
+  reason: ERROR_REASONS[0],
+  what: "",
+  subtopicName: "",
+});
+
+const makeErrorItems = (n: number, prev?: ErrorItemDraft[]): ErrorItemDraft[] =>
+  Array.from({ length: Math.max(1, Math.min(50, n)) }, (_, i) => prev?.[i] ?? emptyErrorItem());
 
 export const Route = createFileRoute("/_authenticated/erros")({
   head: () => ({
@@ -47,11 +58,8 @@ function ErrosPage() {
   const [areaName, setAreaName] = useState("");
   const [specialtyName, setSpecialtyName] = useState("");
   const [subjectId, setSubjectId] = useState("");
-  const [subtopicName, setSubtopicName] = useState("");
   const [errorCount, setErrorCount] = useState("1");
-  const [reason, setReason] = useState<string>(ERROR_REASONS[0]);
-  const [note, setNote] = useState("");
-  const [what, setWhat] = useState("");
+  const [items, setItems] = useState<ErrorItemDraft[]>(() => makeErrorItems(1));
   const [status, setStatus] = useState<string>("ativo");
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -62,17 +70,22 @@ function ErrosPage() {
 
   const { data: subtopics = [] } = useSubjectSubtopics(subjectId || undefined);
 
+  useEffect(() => {
+    setItems((prev) => makeErrorItems(Number(errorCount) || 1, prev));
+  }, [errorCount]);
+
   const resetForm = () => {
     setEditingId(null);
     setAreaName("");
     setSpecialtyName("");
     setSubjectId("");
-    setSubtopicName("");
     setErrorCount("1");
-    setReason(ERROR_REASONS[0]);
-    setNote("");
-    setWhat("");
+    setItems(makeErrorItems(1));
     setStatus("ativo");
+  };
+
+  const patchItem = (i: number, patch: Partial<ErrorItemDraft>) => {
+    setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   };
 
   const saveError = useMutation({
@@ -93,22 +106,23 @@ function ErrosPage() {
         resolvedSubjectId = created.id;
       }
 
-      const payload = {
-        subject_id: resolvedSubjectId,
-        subtopic_name: subtopicName.trim() || null,
-        error_count: Number(errorCount) || 1,
-        reason,
-        note: note.trim() || null,
-        what: what.trim() || null,
-        status,
-      };
       if (editingId) {
-        const { error } = await supabase.from("question_errors").update(payload).eq("id", editingId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("question_errors").insert({ ...payload, user_id: userId });
-        if (error) throw error;
+        await supabase.from("question_errors").delete().eq("id", editingId);
       }
+
+      const { error } = await supabase.from("question_errors").insert(
+        items.map((it) => ({
+          user_id: userId,
+          subject_id: resolvedSubjectId,
+          subtopic_name: it.subtopicName.trim() || null,
+          error_count: 1,
+          reason: it.reason,
+          what: it.what.trim() || null,
+          status,
+        })),
+      );
+      if (error) throw error;
+
       void recalculateSubjectPriority(userId, resolvedSubjectId).catch((err) => {
         console.warn("Falha ao recalcular prioridade do assunto", resolvedSubjectId, err);
       });
@@ -117,7 +131,7 @@ function ErrosPage() {
       resetForm();
       qc.invalidateQueries({ queryKey: ["question_errors"] });
       qc.invalidateQueries({ queryKey: ["subjects"] });
-      toast.success(editingId ? "Erro atualizado" : "Erro registrado");
+      toast.success(editingId ? "Erro atualizado" : "Erros registrados");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -254,7 +268,6 @@ function ErrosPage() {
                 setAreaName(e.target.value);
                 setSpecialtyName("");
                 setSubjectId("");
-                setSubtopicName("");
               }}
               required
             >
@@ -273,7 +286,6 @@ function ErrosPage() {
               onChange={(e) => {
                 setSpecialtyName(e.target.value);
                 setSubjectId("");
-                setSubtopicName("");
               }}
               required
               disabled={!areaName}
@@ -289,26 +301,12 @@ function ErrosPage() {
           <Field label="Assunto">
             <Combobox
               value={subjectId}
-              onChange={(v) => {
-                setSubjectId(v);
-                setSubtopicName("");
-              }}
+              onChange={(v) => setSubjectId(v)}
               options={filteredSubjects.map((s) => ({ value: s.id, label: s.name }))}
               placeholder="Buscar ou digitar assunto..."
               emptyText="Nenhum assunto nesta especialidade."
               allowCreate
               createLabel={(q) => `Criar assunto "${q}"`}
-            />
-          </Field>
-          <Field label="Subassunto (opcional)">
-            <Combobox
-              value={subtopicName}
-              onChange={setSubtopicName}
-              options={subtopics.map((t) => ({ value: t.name, label: t.name }))}
-              placeholder="Buscar ou digitar subassunto..."
-              emptyText="Nenhum subassunto."
-              allowCreate
-              createLabel={(q) => `Usar "${q}"`}
             />
           </Field>
           <Field label="Quantidade de erros">
@@ -319,30 +317,6 @@ function ErrosPage() {
               onChange={(e) => setErrorCount(e.target.value)}
             />
           </Field>
-          <Field label="Motivo">
-            <select className={inputClass} value={reason} onChange={(e) => setReason(e.target.value)}>
-              {ERROR_REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <div className="sm:col-span-2">
-            <Field label="Observação (opcional)">
-              <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: confundi HAS com ICC" />
-            </Field>
-          </div>
-          <div className="sm:col-span-2">
-            <Field label="O que eu errei / o que lembrar? (opcional)">
-              <textarea
-                className={`${inputClass} min-h-[60px]`}
-                value={what}
-                onChange={(e) => setWhat(e.target.value)}
-                placeholder="Ex.: sempre trocar a conduta na hipertensão gestacional"
-              />
-            </Field>
-          </div>
           <Field label="Status">
             <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
               {ERROR_STATUSES.map((s) => (
@@ -352,6 +326,50 @@ function ErrosPage() {
               ))}
             </select>
           </Field>
+
+          <div className="space-y-2 sm:col-span-2">
+            {items.map((it, i) => (
+              <div key={i} className="rounded-lg border border-border p-2">
+                <p className="text-[11px] font-medium text-muted-foreground">Erro {i + 1}</p>
+                <div className="mt-1 grid gap-2 sm:grid-cols-2">
+                  <Field label="Motivo">
+                    <select
+                      className={inputClass}
+                      value={it.reason}
+                      onChange={(e) => patchItem(i, { reason: e.target.value })}
+                    >
+                      {ERROR_REASONS.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Subassunto (opcional)">
+                    <Combobox
+                      value={it.subtopicName}
+                      onChange={(v) => patchItem(i, { subtopicName: v })}
+                      options={subtopics.map((t) => ({ value: t.name, label: t.name }))}
+                      placeholder="Buscar ou digitar subassunto..."
+                      emptyText="Nenhum subassunto."
+                      allowCreate
+                      createLabel={(q) => `Usar "${q}"`}
+                    />
+                  </Field>
+                  <div className="sm:col-span-2">
+                    <Field label="O que eu errei / o que lembrar? (opcional)">
+                      <textarea
+                        className={`${inputClass} min-h-[44px]`}
+                        value={it.what}
+                        onChange={(e) => patchItem(i, { what: e.target.value })}
+                        placeholder="Ex.: sempre trocar a conduta na hipertensão gestacional"
+                      />
+                    </Field>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
           <div className="flex items-center gap-2 sm:col-span-2">
             <button className={buttonClass} disabled={!subjectId || saveError.isPending}>
               {editingId ? "Salvar alterações" : "Adicionar erro"}
@@ -405,11 +423,10 @@ function ErrosPage() {
                     setAreaName(area?.area ?? "");
                     setSpecialtyName(discipline?.name ?? "");
                     setSubjectId(e.subject_id);
-                    setSubtopicName(e.subtopic_name ?? "");
                     setErrorCount(String(e.error_count));
-                    setReason(e.reason);
-                    setNote(e.note ?? "");
-                    setWhat(e.what ?? "");
+                    setItems([
+                      { reason: e.reason, what: e.what ?? "", subtopicName: e.subtopic_name ?? "" },
+                    ]);
                     setStatus(normalizeStatus(e.status));
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}

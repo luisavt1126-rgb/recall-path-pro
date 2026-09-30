@@ -100,13 +100,13 @@ export function useSubjectPrioritySnapshots() {
 }
 
 export const ERROR_REASONS = [
-  "Não sabia",
-  "Falta de atenção",
-  "Interpretação",
-  "Pegadinha",
-  "Erro de conduta",
+  "Não sabia o conteúdo",
   "Confundi conceitos",
+  "Falta de atenção",
+  "Interpretação da questão",
+  "Erro de conduta",
   "Chute",
+  "Pegadinha",
 ] as const;
 
 export function useQuestionErrors() {
