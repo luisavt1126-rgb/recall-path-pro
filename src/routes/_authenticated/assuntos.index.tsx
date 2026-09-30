@@ -370,7 +370,11 @@ function SubjectsPage() {
 
       {disciplines.length === 0 && <Empty>Cadastre sua primeira disciplina acima.</Empty>}
 
-      {disciplines.map((discipline) => {
+      {disciplines.length > 0 && subjects.length === 0 && (
+        <Empty>Nenhum assunto cadastrado ainda. Adicione seu primeiro assunto.</Empty>
+      )}
+
+      {subjects.length > 0 && disciplines.map((discipline) => {
         const roots = subjects.filter(
           (s) => s.discipline_id === discipline.id && !s.parent_id,
         );
