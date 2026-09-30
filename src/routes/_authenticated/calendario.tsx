@@ -341,9 +341,10 @@ function CalendarPage() {
             ) : (
               <div className="space-y-2 text-sm">
                 {todaySubjects.map((s) => (
-                  <Link key={s.id} to="/assuntos/$id" params={{ id: s.id }} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary">
+                  <Link key={s.id} to="/assuntos/$id" params={{ id: s.id }} search={{ tipo: "questoes" }} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary">
                     <span className="h-2 w-2 shrink-0 rounded-full bg-violet" />
                     <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                    <span className="shrink-0 text-xs text-brand">❓ revisar</span>
                   </Link>
                 ))}
                 {todayDecks.map((d) => (
@@ -362,7 +363,7 @@ function CalendarPage() {
             ) : (
               <div className="space-y-2 text-sm">
                 {overdueSubjects.slice(0, 8).map((s) => (
-                  <Link key={s.id} to="/assuntos/$id" params={{ id: s.id }} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary">
+                  <Link key={s.id} to="/assuntos/$id" params={{ id: s.id }} search={{ tipo: "questoes" }} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary">
                     <span className="h-2 w-2 shrink-0 rounded-full bg-rose" />
                     <span className="min-w-0 flex-1 truncate">{s.name}</span>
                     <span className="text-xs text-rose">{formatDate(s.next_review_at)}</span>

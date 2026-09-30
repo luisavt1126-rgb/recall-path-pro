@@ -275,3 +275,32 @@ describe("caderno de erros (manualErrors)", () => {
     strictEqual(r.errorScore, 0);
   });
 });
+
+describe("caderno de erros — peso por status", () => {
+  it("erro resolvido não pesa (peso 0)", () => {
+    const r = computePrioritySnapshot(
+      input({
+        manualErrors: [{ createdAt: ago(5), errorCount: 5, reason: "chute", status: "resolvido" }],
+      }),
+    );
+    strictEqual(r.errorScore, 0);
+  });
+
+  it("erro em melhora pesa menos (peso 0.5)", () => {
+    const r = computePrioritySnapshot(
+      input({
+        manualErrors: [{ createdAt: ago(5), errorCount: 5, reason: "chute", status: "em_melhora" }],
+      }),
+    );
+    strictEqual(r.errorScore, 5.42);
+  });
+
+  it("erro recorrente pesa como ativo (peso 1)", () => {
+    const r = computePrioritySnapshot(
+      input({
+        manualErrors: [{ createdAt: ago(5), errorCount: 5, reason: "chute", status: "recorrente" }],
+      }),
+    );
+    strictEqual(r.errorScore, 10.83);
+  });
+});

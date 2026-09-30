@@ -8,7 +8,9 @@
 // que continuam ativos. `mastery`, `exam_incidence` e os campos SRS ficam de
 // fora do score por decisão de projeto (ver .lovable/plan).
 
-export const ENGINE_VERSION = "1.1.0";
+import { ERROR_STATUS_WEIGHT, normalizeStatus } from "./errorStatus";
+
+export const ENGINE_VERSION = "1.2.0";
 
 export type KnowledgeState =
   | "NEW"
@@ -44,6 +46,8 @@ export type ManualError = {
   createdAt: string;
   errorCount: number;
   reason: string | null;
+  /** "ativo" | "em_melhora" | "resolvido" | "recorrente" (default "ativo"). */
+  status?: string;
 };
 
 export type PriorityEngineInput = {
@@ -335,16 +339,27 @@ function errorScore(
   now: Date,
 ): ErrorInfo {
   const nowMs = now.getTime();
-  const manualRecentErrors = manualErrors
+
+  // Erros "resolvido" não pesam (peso 0); "em_melhora" pesa menos (0.5).
+  const weighted = manualErrors
+    .map((e) => {
+      const status = normalizeStatus(e.status);
+      return { ...e, status, weight: ERROR_STATUS_WEIGHT[status] };
+    })
+    .filter((e) => e.weight > 0);
+
+  const manualRecentErrors = weighted
     .filter((e) => new Date(e.createdAt).getTime() > nowMs - ERROR_MANUAL_WINDOW_DAYS * DAY_MS)
-    .reduce((sum, e) => sum + e.errorCount, 0);
-  const manualEntries = manualErrors.length;
+    .reduce((sum, e) => sum + e.errorCount * e.weight, 0);
+
+  const manualEntries = weighted.length;
+  const weightedEntries = weighted.reduce((sum, e) => sum + e.weight, 0);
 
   const volumeErrors = recentErrors + manualRecentErrors;
   const volume =
     COMPONENT_MAX.error * ERROR_WEIGHT_VOLUME * Math.min(1, volumeErrors / ERROR_VOLUME_CAP);
 
-  const manualRecurrence = Math.min(1, manualEntries / ERROR_RECURRENCE_BLOCKS);
+  const manualRecurrence = Math.min(1, weightedEntries / ERROR_RECURRENCE_BLOCKS);
   const effectiveRecurrence = Math.max(recurrence, manualRecurrence);
   const recur = COMPONENT_MAX.error * ERROR_WEIGHT_RECURRENCE * effectiveRecurrence;
 

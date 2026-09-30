@@ -15,6 +15,7 @@ import {
   useSubjectPrioritySnapshots,
 } from "@/lib/data";
 import { CORE_AREAS } from "@/lib/areas";
+import { ERROR_STATUSES, ERROR_STATUS_LABEL, ERROR_STATUS_WEIGHT, normalizeStatus } from "@/lib/errorStatus";
 import { Panel, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { formatDate } from "@/lib/format";
 
@@ -49,6 +50,8 @@ function ErrosPage() {
   const [errorCount, setErrorCount] = useState("1");
   const [reason, setReason] = useState<string>(ERROR_REASONS[0]);
   const [note, setNote] = useState("");
+  const [what, setWhat] = useState("");
+  const [status, setStatus] = useState<string>("ativo");
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const specialtyDiscipline = disciplines.find((d) => d.name === specialtyName);
@@ -67,6 +70,8 @@ function ErrosPage() {
     setErrorCount("1");
     setReason(ERROR_REASONS[0]);
     setNote("");
+    setWhat("");
+    setStatus("ativo");
   };
 
   const saveError = useMutation({
@@ -78,6 +83,8 @@ function ErrosPage() {
         error_count: Number(errorCount) || 1,
         reason,
         note: note.trim() || null,
+        what: what.trim() || null,
+        status,
       };
       if (editingId) {
         const { error } = await supabase.from("question_errors").update(payload).eq("id", editingId);
@@ -114,6 +121,29 @@ function ErrosPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const markResolved = useMutation({
+    mutationFn: async ({ id, subjectId }: { id: string; subjectId: string }) => {
+      const userId = await requireUserId();
+      const { error } = await supabase.from("question_errors").update({ status: "resolvido" }).eq("id", id);
+      if (error) throw error;
+      void recalculateSubjectPriority(userId, subjectId).catch((err) => {
+        console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["question_errors"] });
+      toast.success("Erro marcado como resolvido");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const STATUS_BADGE_CLASS: Record<ReturnType<typeof normalizeStatus>, string> = {
+    ativo: "rounded-full bg-rose/10 px-2 py-0.5 text-xs font-semibold text-rose",
+    em_melhora: "rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-600",
+    resolvido: "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600",
+    recorrente: "rounded-full bg-purple-500/10 px-2 py-0.5 text-xs font-semibold text-purple-600",
+  };
+
   // --- Assuntos fracos ---
   const monthAgo = now.getTime() - 30 * 86_400_000;
   const statsBySubject = new Map<string, { total: number; correct: number; recentErrors: number; errorEntries: number }>();
@@ -126,9 +156,11 @@ function ErrosPage() {
     statsBySubject.set(l.subject_id, st);
   }
   for (const e of errors) {
+    const weight = ERROR_STATUS_WEIGHT[normalizeStatus(e.status)];
+    if (weight <= 0) continue;
     const st = statsBySubject.get(e.subject_id) ?? { total: 0, correct: 0, recentErrors: 0, errorEntries: 0 };
-    st.errorEntries += e.error_count;
-    if (new Date(e.created_at).getTime() > monthAgo) st.recentErrors += e.error_count;
+    st.errorEntries += e.error_count * weight;
+    if (new Date(e.created_at).getTime() > monthAgo) st.recentErrors += e.error_count * weight;
     statsBySubject.set(e.subject_id, st);
   }
   const snapshotBySubject = new Map(snapshots.map((s) => [s.subject_id, s]));
@@ -288,6 +320,25 @@ function ErrosPage() {
               <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: confundi HAS com ICC" />
             </Field>
           </div>
+          <div className="sm:col-span-2">
+            <Field label="O que eu errei / o que lembrar? (opcional)">
+              <textarea
+                className={`${inputClass} min-h-[60px]`}
+                value={what}
+                onChange={(e) => setWhat(e.target.value)}
+                placeholder="Ex.: sempre trocar a conduta na hipertensão gestacional"
+              />
+            </Field>
+          </div>
+          <Field label="Status">
+            <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
+              {ERROR_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {ERROR_STATUS_LABEL[s]}
+                </option>
+              ))}
+            </select>
+          </Field>
           <div className="flex items-center gap-2 sm:col-span-2">
             <button className={buttonClass} disabled={!subjectId || saveError.isPending}>
               {editingId ? "Salvar alterações" : "Adicionar erro"}
@@ -309,12 +360,27 @@ function ErrosPage() {
             {errors.map((e) => (
               <div key={e.id} className="flex items-start gap-2 rounded-xl border border-border px-3 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{errorSubject(e)}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="min-w-0 flex-1 truncate font-medium">{errorSubject(e)}</p>
+                    <span className={`shrink-0 ${STATUS_BADGE_CLASS[normalizeStatus(e.status)]}`}>
+                      {ERROR_STATUS_LABEL[normalizeStatus(e.status)]}
+                    </span>
+                  </div>
+                  {e.what && <p className="mt-1 text-sm">💭 {e.what}</p>}
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {e.error_count} erro(s) · {e.reason}
                     {e.note ? ` · "${e.note}"` : ""} · {formatDate(e.created_at)}
                   </p>
                 </div>
+                {normalizeStatus(e.status) !== "resolvido" && (
+                  <button
+                    type="button"
+                    className="shrink-0 text-xs font-medium text-emerald-600 hover:text-emerald-700"
+                    onClick={() => markResolved.mutate({ id: e.id, subjectId: e.subject_id })}
+                  >
+                    Marcar resolvido
+                  </button>
+                )}
                 <button
                   type="button"
                   className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
@@ -330,6 +396,8 @@ function ErrosPage() {
                     setErrorCount(String(e.error_count));
                     setReason(e.reason);
                     setNote(e.note ?? "");
+                    setWhat(e.what ?? "");
+                    setStatus(normalizeStatus(e.status));
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
                 >

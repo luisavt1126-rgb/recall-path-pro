@@ -105,7 +105,16 @@ function ReviewsPage() {
                   </div>
                   <PriorityTag level={level} />
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Link
+                    to="/assuntos/$id"
+                    params={{ id: subject.id }}
+                    search={{ tipo: "questoes" }}
+                    className={`${buttonClass} inline-flex items-center gap-1`}
+                  >
+                    ❓ Registrar por questões
+                  </Link>
+                  <span className="text-xs text-muted-foreground">ou avaliação rápida:</span>
                   {RATINGS.map((rating) => (
                     <button
                       key={rating}

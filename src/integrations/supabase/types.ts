@@ -400,10 +400,12 @@ export type Database = {
           id: string
           note: string | null
           reason: string
+          status: string
           subject_id: string
           subtopic_id: string | null
           updated_at: string
           user_id: string
+          what: string | null
         }
         Insert: {
           created_at?: string
@@ -411,10 +413,12 @@ export type Database = {
           id?: string
           note?: string | null
           reason: string
+          status?: string
           subject_id: string
           subtopic_id?: string | null
           updated_at?: string
           user_id: string
+          what?: string | null
         }
         Update: {
           created_at?: string
@@ -422,10 +426,12 @@ export type Database = {
           id?: string
           note?: string | null
           reason?: string
+          status?: string
           subject_id?: string
           subtopic_id?: string | null
           updated_at?: string
           user_id?: string
+          what?: string | null
         }
         Relationships: [
           {

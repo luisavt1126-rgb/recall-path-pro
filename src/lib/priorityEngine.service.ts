@@ -108,7 +108,12 @@ export async function recalculateSubjectPriority(
       (ds): RawDeckSession => ({ rating: ds.rating, reviewedAt: ds.reviewed_at }),
     ),
     questionErrors: (questionErrors ?? []).map(
-      (e): RawQuestionError => ({ createdAt: e.created_at, errorCount: e.error_count, reason: e.reason }),
+      (e): RawQuestionError => ({
+        createdAt: e.created_at,
+        errorCount: e.error_count,
+        reason: e.reason,
+        status: e.status,
+      }),
     ),
     now,
   });

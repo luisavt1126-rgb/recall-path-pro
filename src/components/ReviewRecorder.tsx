@@ -6,6 +6,7 @@ import type { Subject } from "@/lib/data";
 import { RATING_LABEL, type Rating } from "@/lib/srs";
 import { buttonClass, ghostButtonClass, inputClass } from "@/components/bits";
 import { QuestionErrorSection, type QuestionErrorData } from "@/components/QuestionErrorSection";
+import { reconcileErrorsAfterQuestionReview } from "@/lib/errorReconciliation";
 
 type ReviewType = "questoes" | "anki";
 
@@ -40,10 +41,16 @@ export function ankiCompletionToRating(
  * - Anki/Flashcards: execução e regularidade (concluiu a sessão?).
  * Videoaula/resumo não entram aqui — ficam no checklist de preparo do assunto.
  */
-export function ReviewRecorder({ subject }: { subject: Subject }) {
+export function ReviewRecorder({
+  subject,
+  initialType,
+}: {
+  subject: Subject;
+  initialType?: ReviewType;
+}) {
   const rate = useRateSubject();
 
-  const [type, setType] = useState<ReviewType | null>(null);
+  const [type, setType] = useState<ReviewType | null>(initialType ?? null);
   const [total, setTotal] = useState("");
   const [correct, setCorrect] = useState("");
   const [planned, setPlanned] = useState("");
@@ -78,17 +85,20 @@ export function ReviewRecorder({ subject }: { subject: Subject }) {
         });
         if (logError) throw logError;
 
-        if (errorData) {
-          const { error: errError } = await supabase.from("question_errors").insert({
-            user_id: userId,
-            subject_id: subject.id,
-            subtopic_id: errorData.subtopicId || null,
-            error_count: totalNum - correctNum,
-            reason: errorData.reason,
-            note: errorData.note.trim() || null,
-          });
-          if (errError) throw errError;
-        }
+        const reviewPct = totalNum > 0 ? Math.round((correctNum / totalNum) * 100) : 0;
+        await reconcileErrorsAfterQuestionReview(
+          userId,
+          subject.id,
+          reviewPct,
+          errorData
+            ? {
+                subtopicId: errorData.subtopicId || null,
+                errorCount: totalNum - correctNum,
+                reason: errorData.reason,
+                note: errorData.note.trim() || null,
+              }
+            : null,
+        );
       }
       rate.mutate({ subject, rating, minutes: minutesValue, activityType });
       reset();

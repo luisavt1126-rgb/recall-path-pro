@@ -18,6 +18,7 @@ import { questionPriority } from "@/lib/priority";
 import { Panel, PriorityTag, Field, inputClass, buttonClass, Empty } from "@/components/bits";
 import { PrepIcons, PREP_ITEMS, type PrepKey } from "@/components/SubjectPrep";
 import { QuestionErrorSection, type QuestionErrorData } from "@/components/QuestionErrorSection";
+import { reconcileErrorsAfterQuestionReview } from "@/lib/errorReconciliation";
 import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/assuntos/")({
@@ -142,17 +143,23 @@ function SubjectsPage() {
         });
         if (questionsError) throw questionsError;
 
-        if (errorData) {
-          const { error: errError } = await supabase.from("question_errors").insert({
-            user_id: userId,
-            subject_id: id,
-            subtopic_id: errorData.subtopicId || null,
-            error_count: Number(questionsTotal) - Number(questionsCorrect),
-            reason: errorData.reason,
-            note: errorData.note.trim() || null,
-          });
-          if (errError) throw errError;
-        }
+        const questionsPct =
+          Number(questionsTotal) > 0
+            ? Math.round((Number(questionsCorrect) / Number(questionsTotal)) * 100)
+            : 0;
+        await reconcileErrorsAfterQuestionReview(
+          userId,
+          id,
+          questionsPct,
+          errorData
+            ? {
+                subtopicId: errorData.subtopicId || null,
+                errorCount: Number(questionsTotal) - Number(questionsCorrect),
+                reason: errorData.reason,
+                note: errorData.note.trim() || null,
+              }
+            : null,
+        );
 
         const minutes = Number(questionsMinutes);
         if (Number.isFinite(minutes) && minutes > 0) {
@@ -203,6 +210,7 @@ function SubjectsPage() {
       await supabase.from("anki_decks").delete().eq("subject_id", subjectId);
       await supabase.from("study_sessions").delete().eq("subject_id", subjectId);
       await supabase.from("question_logs").delete().eq("subject_id", subjectId);
+      await supabase.from("question_errors").delete().eq("subject_id", subjectId);
       await supabase.from("reviews").delete().eq("subject_id", subjectId);
       await supabase.from("subject_priority_snapshots").delete().eq("subject_id", subjectId);
       const { error } = await supabase.from("subjects").delete().eq("id", subjectId);
@@ -222,6 +230,7 @@ function SubjectsPage() {
       await supabase.from("anki_decks").delete().eq("user_id", userId);
       await supabase.from("study_sessions").delete().eq("user_id", userId);
       await supabase.from("question_logs").delete().eq("user_id", userId);
+      await supabase.from("question_errors").delete().eq("user_id", userId);
       await supabase.from("reviews").delete().eq("user_id", userId);
       await supabase.from("subject_priority_snapshots").delete().eq("user_id", userId);
       const { error } = await supabase.from("subjects").delete().eq("user_id", userId);
