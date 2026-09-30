@@ -33,48 +33,114 @@ export const Route = createFileRoute("/_authenticated/assuntos/")({
   component: SubjectsPage,
 });
 
-/** Áreas/especialidades clínicas (lista direta, não hierárquica). */
-const CORE_AREAS = [
-  "Cardiologia",
-  "Endocrinologia",
-  "Infectologia",
-  "Nefrologia",
-  "Gastroenterologia",
-  "Pneumologia",
-  "Reumatologia",
-  "Hematologia",
-  "Neurologia",
-  "Dermatologia",
-  "Psiquiatria",
-  "Oftalmologia",
-  "GO/Obstetrícia",
-  "Pediatria",
-  "Preventiva",
-  "Cirurgia Abdominal",
-  "Urologia",
-  "Ortopedia",
-  "Neurocirurgia",
-  "Otorrino",
-] as const;
+/** Grande área -> especialidades (classificadores fixos). */
+const CORE_AREAS: { area: string; specialties: string[] }[] = [
+  {
+    area: "Clínica Médica",
+    specialties: [
+      "Cardiologia",
+      "Endocrinologia",
+      "Infectologia",
+      "Nefrologia",
+      "Gastroenterologia",
+      "Pneumologia",
+      "Reumatologia",
+      "Hematologia",
+      "Neurologia",
+      "Dermatologia",
+      "Psiquiatria",
+      "Oftalmologia",
+      "Otorrinolaringologia",
+    ],
+  },
+  {
+    area: "GO/Obstetrícia",
+    specialties: ["Obstetrícia", "Ginecologia"],
+  },
+  {
+    area: "Cirurgia",
+    specialties: [
+      "Cirurgia Geral",
+      "Cirurgia Abdominal",
+      "Urologia",
+      "Ortopedia",
+      "Neurocirurgia",
+      "Cirurgia Vascular",
+      "Cirurgia Pediátrica",
+    ],
+  },
+  {
+    area: "Pediatria",
+    specialties: [
+      "Pediatria Geral",
+      "Neonatologia",
+      "Puericultura",
+      "Emergências Pediátricas",
+      "Infectologia Pediátrica",
+    ],
+  },
+  {
+    area: "Medicina Preventiva/Saúde Coletiva",
+    specialties: [
+      "Epidemiologia",
+      "Bioestatística",
+      "SUS",
+      "Medicina de Família e Comunidade",
+      "Vigilância em Saúde",
+    ],
+  },
+];
 
-/** Garante que as áreas/especialidades existam para o usuário, sem duplicar por nome. */
-function useSeedCoreAreas(disciplines: { name: string }[], ready: boolean) {
+/** Garante que as grandes áreas e especialidades existam (classificadores fixos). */
+function useSeedCoreAreas(
+  disciplines: { id: string; name: string; parent_id: string | null }[],
+  ready: boolean,
+) {
   const qc = useQueryClient();
   const ran = useRef(false);
 
   useEffect(() => {
     if (!ready || ran.current) return;
-    const existing = new Set(disciplines.map((d) => d.name.trim().toLowerCase()));
-    const missing = CORE_AREAS.filter((n) => !existing.has(n.toLowerCase()));
-    if (missing.length === 0) return;
+    const existingNames = new Set(disciplines.map((d) => d.name.trim().toLowerCase()));
+    const missingAreas = CORE_AREAS.filter((a) => !existingNames.has(a.area.toLowerCase()));
+    const missingSpecialties = CORE_AREAS.flatMap((a) =>
+      a.specialties.filter((s) => !existingNames.has(s.toLowerCase())),
+    );
+    if (missingAreas.length === 0 && missingSpecialties.length === 0) return;
     ran.current = true;
     (async () => {
       try {
         const userId = await requireUserId();
-        const { error } = await supabase
-          .from("disciplines")
-          .insert(missing.map((name) => ({ user_id: userId, name })));
-        if (error) throw error;
+        // 1. Cria as grandes áreas (parent_id null).
+        const areaIdByName = new Map<string, string>();
+        for (const d of disciplines) {
+          if (!d.parent_id) areaIdByName.set(d.name.trim().toLowerCase(), d.id);
+        }
+        if (missingAreas.length > 0) {
+          const { data: inserted, error } = await supabase
+            .from("disciplines")
+            .insert(missingAreas.map((a) => ({ user_id: userId, name: a.area, parent_id: null })))
+            .select("id, name");
+          if (error) throw error;
+          for (const row of inserted ?? []) {
+            areaIdByName.set(row.name.trim().toLowerCase(), row.id);
+          }
+        }
+        // 2. Cria as especialidades vinculadas à grande área.
+        const specialtiesToInsert: { user_id: string; name: string; parent_id: string }[] = [];
+        for (const { area, specialties } of CORE_AREAS) {
+          const areaId = areaIdByName.get(area.toLowerCase());
+          if (!areaId) continue;
+          for (const name of specialties) {
+            if (!existingNames.has(name.toLowerCase())) {
+              specialtiesToInsert.push({ user_id: userId, name, parent_id: areaId });
+            }
+          }
+        }
+        if (specialtiesToInsert.length > 0) {
+          const { error } = await supabase.from("disciplines").insert(specialtiesToInsert);
+          if (error) throw error;
+        }
         qc.invalidateQueries({ queryKey: ["disciplines"] });
       } catch (e) {
         ran.current = false;
@@ -92,7 +158,8 @@ function SubjectsPage() {
   const stats = questionStatsBySubject(logs);
 
   const [subjectName, setSubjectName] = useState("");
-  const [disciplineId, setDisciplineId] = useState("");
+  const [areaName, setAreaName] = useState("");
+  const [specialtyId, setSpecialtyId] = useState("");
   const [prep, setPrep] = useState<Record<PrepKey, boolean>>({
     video_watched_at: false,
     summary_ready_at: false,
@@ -107,10 +174,12 @@ function SubjectsPage() {
 
   useSeedCoreAreas(disciplines, disciplinesLoaded);
 
-  // Áreas/especialidades disponíveis para novos assuntos.
-  const coreAreas = CORE_AREAS.map((name) =>
-    disciplines.find((d) => d.name.trim().toLowerCase() === name.toLowerCase()),
-  ).filter((d): d is NonNullable<typeof d> => Boolean(d));
+  // Grandes áreas (parent_id null) e especialidades do nível selecionado.
+  const areaDisciplines = disciplines.filter((d) => !d.parent_id);
+  const selectedArea = areaDisciplines.find((a) => a.name === areaName);
+  const selectedAreaSpecialties = selectedArea
+    ? disciplines.filter((d) => d.parent_id === selectedArea.id)
+    : [];
 
   const addSubject = useMutation({
     mutationFn: async () => {
@@ -120,7 +189,7 @@ function SubjectsPage() {
         .from("subjects")
         .insert({
           user_id: userId,
-          discipline_id: disciplineId,
+          discipline_id: specialtyId,
           name: subjectName.trim(),
           video_watched_at: prep.video_watched_at ? now : null,
           summary_ready_at: prep.summary_ready_at ? now : null,
@@ -149,7 +218,7 @@ function SubjectsPage() {
         const { error: questionsError } = await supabase.from("question_logs").insert({
           user_id: userId,
           subject_id: id,
-          discipline_id: disciplineId,
+          discipline_id: specialtyId,
           total: Number(questionsTotal),
           correct: Number(questionsCorrect),
         });
@@ -180,6 +249,7 @@ function SubjectsPage() {
     },
     onSuccess: () => {
       setSubjectName("");
+      setSpecialtyId("");
       setPrep({ video_watched_at: false, summary_ready_at: false, deck_ready_at: false });
       setQuestionsDone(false);
       setQuestionsTotal("");
@@ -252,7 +322,7 @@ function SubjectsPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!subjectName.trim() || !disciplineId) return;
+              if (!subjectName.trim() || !areaName || !specialtyId) return;
               if (questionsDone) {
                 const t = Number(questionsTotal);
                 const c = Number(questionsCorrect);
@@ -265,23 +335,40 @@ function SubjectsPage() {
             }}
             className="grid gap-3 sm:grid-cols-2"
           >
-            <div className="sm:col-span-2">
-              <Field label="Área/Especialidade">
-                <select
-                  className={inputClass}
-                  value={disciplineId}
-                  onChange={(e) => setDisciplineId(e.target.value)}
-                  required
-                >
-                  <option value="">Selecione</option>
-                  {coreAreas.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
+            <Field label="Grande área">
+              <select
+                className={inputClass}
+                value={areaName}
+                onChange={(e) => {
+                  setAreaName(e.target.value);
+                  setSpecialtyId("");
+                }}
+                required
+              >
+                <option value="">Selecione</option>
+                {areaDisciplines.map((d) => (
+                  <option key={d.id} value={d.name}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Especialidade">
+              <select
+                className={inputClass}
+                value={specialtyId}
+                onChange={(e) => setSpecialtyId(e.target.value)}
+                required
+                disabled={!areaName}
+              >
+                <option value="">Selecione</option>
+                {selectedAreaSpecialties.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <div className="sm:col-span-2">
               <Field label="Assunto">
                 <input
@@ -374,20 +461,32 @@ function SubjectsPage() {
         <Empty>Nenhum assunto cadastrado ainda. Adicione seu primeiro assunto.</Empty>
       )}
 
-      {subjects.length > 0 && disciplines.map((discipline) => {
-        const subjectsInArea = subjects.filter((s) => s.discipline_id === discipline.id);
+      {subjects.length > 0 && areaDisciplines.map((area) => {
+        const areaSpecialties = disciplines.filter((d) => d.parent_id === area.id);
+        const hasSubjects = areaSpecialties.some(
+          (spec) => subjects.some((s) => s.discipline_id === spec.id),
+        );
         return (
-          <Panel key={discipline.id} title={discipline.name}>
-            {subjectsInArea.length === 0 ? (
+          <Panel key={area.id} title={area.name}>
+            {!hasSubjects ? (
               <Empty>Nenhum assunto ainda.</Empty>
             ) : (
-              <div className="space-y-2">
-                {subjectsInArea.map((subject) => (
-                  <div key={subject.id} className="rounded-xl border border-border p-3">
-                    <SubjectRow subjectId={subject.id} />
+              areaSpecialties.map((spec) => {
+                const specSubjects = subjects.filter((s) => s.discipline_id === spec.id);
+                if (specSubjects.length === 0) return null;
+                return (
+                  <div key={spec.id} className="mb-3 last:mb-0">
+                    <p className="text-sm font-semibold text-muted-foreground">{spec.name}</p>
+                    <div className="mt-1 space-y-2">
+                      {specSubjects.map((subject) => (
+                        <div key={subject.id} className="rounded-xl border border-border p-3">
+                          <SubjectRow subjectId={subject.id} />
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
+                );
+              })
             )}
           </Panel>
         );
