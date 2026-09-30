@@ -9,10 +9,12 @@ import {
   ERROR_REASONS,
   useSubjects,
   useSubjectSubtopics,
+  useDisciplines,
   useQuestionLogs,
   useQuestionErrors,
   useSubjectPrioritySnapshots,
 } from "@/lib/data";
+import { CORE_AREAS } from "@/lib/areas";
 import { Panel, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { formatDate } from "@/lib/format";
 
@@ -31,6 +33,7 @@ export const Route = createFileRoute("/_authenticated/erros")({
 function ErrosPage() {
   const qc = useQueryClient();
   const { data: subjects = [] } = useSubjects();
+  const { data: disciplines = [] } = useDisciplines();
   const { data: logs = [] } = useQuestionLogs();
   const { data: errors = [] } = useQuestionErrors();
   const { data: snapshots = [] } = useSubjectPrioritySnapshots();
@@ -39,6 +42,8 @@ function ErrosPage() {
   const subjectById = new Map(subjects.map((s) => [s.id, s]));
 
   // Formulário
+  const [areaName, setAreaName] = useState("");
+  const [specialtyName, setSpecialtyName] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [subtopicId, setSubtopicId] = useState("");
   const [errorCount, setErrorCount] = useState("1");
@@ -46,10 +51,17 @@ function ErrosPage() {
   const [note, setNote] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const specialtyDiscipline = disciplines.find((d) => d.name === specialtyName);
+  const filteredSubjects = specialtyDiscipline
+    ? subjects.filter((s) => s.discipline_id === specialtyDiscipline.id)
+    : [];
+
   const { data: subtopics = [] } = useSubjectSubtopics(subjectId || undefined);
 
   const resetForm = () => {
     setEditingId(null);
+    setAreaName("");
+    setSpecialtyName("");
     setSubjectId("");
     setSubtopicId("");
     setErrorCount("1");
@@ -185,6 +197,46 @@ function ErrosPage() {
           }}
           className="grid gap-3 sm:grid-cols-2"
         >
+          <Field label="Grande área">
+            <select
+              className={inputClass}
+              value={areaName}
+              onChange={(e) => {
+                setAreaName(e.target.value);
+                setSpecialtyName("");
+                setSubjectId("");
+                setSubtopicId("");
+              }}
+              required
+            >
+              <option value="">Selecione</option>
+              {CORE_AREAS.map((a) => (
+                <option key={a.area} value={a.area}>
+                  {a.area}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Especialidade">
+            <select
+              className={inputClass}
+              value={specialtyName}
+              onChange={(e) => {
+                setSpecialtyName(e.target.value);
+                setSubjectId("");
+                setSubtopicId("");
+              }}
+              required
+              disabled={!areaName}
+            >
+              <option value="">Selecione</option>
+              {(CORE_AREAS.find((a) => a.area === areaName)?.specialties ?? []).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </Field>
           <Field label="Assunto">
             <select
               className={inputClass}
@@ -194,9 +246,10 @@ function ErrosPage() {
                 setSubtopicId("");
               }}
               required
+              disabled={!specialtyName}
             >
               <option value="">Selecione</option>
-              {subjects.map((s) => (
+              {filteredSubjects.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
@@ -267,6 +320,11 @@ function ErrosPage() {
                   className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => {
                     setEditingId(e.id);
+                    const subject = subjectById.get(e.subject_id);
+                    const discipline = disciplines.find((d) => d.id === subject?.discipline_id);
+                    const area = CORE_AREAS.find((a) => a.specialties.includes(discipline?.name ?? ""));
+                    setAreaName(area?.area ?? "");
+                    setSpecialtyName(discipline?.name ?? "");
                     setSubjectId(e.subject_id);
                     setSubtopicId(e.subtopic_id ?? "");
                     setErrorCount(String(e.error_count));

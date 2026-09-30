@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { requireUserId, useRateSubject } from "@/lib/actions";
 import type { Subject } from "@/lib/data";
-import { useRateSubject } from "@/lib/actions";
 import { RATING_LABEL, type Rating } from "@/lib/srs";
 import { buttonClass, ghostButtonClass, inputClass } from "@/components/bits";
+import { QuestionErrorSection, type QuestionErrorData } from "@/components/QuestionErrorSection";
 
 type ReviewType = "questoes" | "anki";
 
@@ -47,6 +50,7 @@ export function ReviewRecorder({ subject }: { subject: Subject }) {
   const [done, setDone] = useState("");
   const [concluiu, setConcluiu] = useState<boolean | null>(null);
   const [minutes, setMinutes] = useState("");
+  const [errorData, setErrorData] = useState<QuestionErrorData | null>(null);
 
   const reset = () => {
     setType(null);
@@ -56,14 +60,41 @@ export function ReviewRecorder({ subject }: { subject: Subject }) {
     setDone("");
     setConcluiu(null);
     setMinutes("");
+    setErrorData(null);
   };
 
   const minutesNum = Number(minutes);
   const minutesValue = Number.isFinite(minutesNum) && minutesNum > 0 ? minutesNum : 0;
 
-  const submit = (rating: Rating, activityType: string) => {
-    rate.mutate({ subject, rating, minutes: minutesValue, activityType });
-    reset();
+  const submit = async (rating: Rating, activityType: string) => {
+    try {
+      if (activityType === "questoes") {
+        const userId = await requireUserId();
+        const { error: logError } = await supabase.from("question_logs").insert({
+          user_id: userId,
+          subject_id: subject.id,
+          total: totalNum,
+          correct: correctNum,
+        });
+        if (logError) throw logError;
+
+        if (errorData) {
+          const { error: errError } = await supabase.from("question_errors").insert({
+            user_id: userId,
+            subject_id: subject.id,
+            subtopic_id: errorData.subtopicId || null,
+            error_count: totalNum - correctNum,
+            reason: errorData.reason,
+            note: errorData.note.trim() || null,
+          });
+          if (errError) throw errError;
+        }
+      }
+      rate.mutate({ subject, rating, minutes: minutesValue, activityType });
+      reset();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao registrar revisão");
+    }
   };
 
   const totalNum = Number(total);
@@ -128,6 +159,13 @@ export function ReviewRecorder({ subject }: { subject: Subject }) {
             onChange={(e) => setMinutes(e.target.value)}
             aria-label="Tempo em minutos (opcional)"
           />
+          {validQuestions && totalNum - correctNum > 0 && (
+            <QuestionErrorSection
+              subjectId={subject.id}
+              errorCount={totalNum - correctNum}
+              onChange={setErrorData}
+            />
+          )}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"

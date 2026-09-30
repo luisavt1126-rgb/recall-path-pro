@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { requireUserId, startSubjectCycle } from "@/lib/actions";
 import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
+import { CORE_AREAS } from "@/lib/areas";
 import {
   EMPTY_STATS,
   questionStatsBySubject,
@@ -16,6 +17,7 @@ import {
 import { questionPriority } from "@/lib/priority";
 import { Panel, PriorityTag, Field, inputClass, buttonClass, Empty } from "@/components/bits";
 import { PrepIcons, PREP_ITEMS, type PrepKey } from "@/components/SubjectPrep";
+import { QuestionErrorSection, type QuestionErrorData } from "@/components/QuestionErrorSection";
 import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/assuntos/")({
@@ -32,64 +34,6 @@ export const Route = createFileRoute("/_authenticated/assuntos/")({
   }),
   component: SubjectsPage,
 });
-
-/** Grande área -> especialidades (classificadores fixos). */
-const CORE_AREAS: { area: string; specialties: string[] }[] = [
-  {
-    area: "Clínica Médica",
-    specialties: [
-      "Cardiologia",
-      "Endocrinologia",
-      "Infectologia",
-      "Nefrologia",
-      "Gastroenterologia",
-      "Pneumologia",
-      "Reumatologia",
-      "Hematologia",
-      "Neurologia",
-      "Dermatologia",
-      "Psiquiatria",
-      "Oftalmologia",
-      "Otorrinolaringologia",
-    ],
-  },
-  {
-    area: "GO/Obstetrícia",
-    specialties: ["Obstetrícia", "Ginecologia"],
-  },
-  {
-    area: "Cirurgia",
-    specialties: [
-      "Cirurgia Geral",
-      "Cirurgia Abdominal",
-      "Urologia",
-      "Ortopedia",
-      "Neurocirurgia",
-      "Cirurgia Vascular",
-      "Cirurgia Pediátrica",
-    ],
-  },
-  {
-    area: "Pediatria",
-    specialties: [
-      "Pediatria Geral",
-      "Neonatologia",
-      "Puericultura",
-      "Emergências Pediátricas",
-      "Infectologia Pediátrica",
-    ],
-  },
-  {
-    area: "Medicina Preventiva/Saúde Coletiva",
-    specialties: [
-      "Epidemiologia",
-      "Bioestatística",
-      "SUS",
-      "Medicina de Família e Comunidade",
-      "Vigilância em Saúde",
-    ],
-  },
-];
 
 /** Garante que as especialidades (classificadores) existam, sem duplicar. */
 function useSeedCoreAreas(disciplines: { id: string; name: string }[], ready: boolean) {
@@ -143,6 +87,7 @@ function SubjectsPage() {
   const [questionsTotal, setQuestionsTotal] = useState("");
   const [questionsCorrect, setQuestionsCorrect] = useState("");
   const [questionsMinutes, setQuestionsMinutes] = useState("");
+  const [errorData, setErrorData] = useState<QuestionErrorData | null>(null);
   const [subtopicsInput, setSubtopicsInput] = useState("");
   const [confirmClear, setConfirmClear] = useState("");
 
@@ -197,6 +142,18 @@ function SubjectsPage() {
         });
         if (questionsError) throw questionsError;
 
+        if (errorData) {
+          const { error: errError } = await supabase.from("question_errors").insert({
+            user_id: userId,
+            subject_id: id,
+            subtopic_id: errorData.subtopicId || null,
+            error_count: Number(questionsTotal) - Number(questionsCorrect),
+            reason: errorData.reason,
+            note: errorData.note.trim() || null,
+          });
+          if (errError) throw errError;
+        }
+
         const minutes = Number(questionsMinutes);
         if (Number.isFinite(minutes) && minutes > 0) {
           const { error: sessionError } = await supabase.from("study_sessions").insert({
@@ -228,6 +185,7 @@ function SubjectsPage() {
       setQuestionsTotal("");
       setQuestionsCorrect("");
       setQuestionsMinutes("");
+      setErrorData(null);
       setSubtopicsInput("");
       qc.invalidateQueries();
       toast.success("Assunto criado");
@@ -409,6 +367,13 @@ function SubjectsPage() {
                     aria-label="Tempo em minutos (opcional)"
                   />
                 </div>
+              )}
+              {questionsDone && Number(questionsTotal) > Number(questionsCorrect) && (
+                <QuestionErrorSection
+                  subjectId=""
+                  errorCount={Number(questionsTotal) - Number(questionsCorrect)}
+                  onChange={setErrorData}
+                />
               )}
             </div>
             <div className="sm:col-span-2">
