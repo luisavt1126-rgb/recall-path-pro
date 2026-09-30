@@ -51,7 +51,7 @@ export function QuestionErrorSection({
   onChange: (specs: QuestionErrorSpec[] | null) => void;
 }) {
   const [enabled, setEnabled] = useState(false);
-  const [mode, setMode] = useState<"block" | "itemized">("block");
+  const [mode, setMode] = useState<"block" | "itemized">("itemized");
   const [reason, setReason] = useState<string>(ERROR_REASONS[0]);
   const [what, setWhat] = useState("");
   const [subtopicName, setSubtopicName] = useState("");
