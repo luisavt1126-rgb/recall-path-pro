@@ -12,7 +12,6 @@ import {
   type Subject,
 } from "@/lib/data";
 import { CORE_AREAS } from "@/lib/areas";
-import { Panel, Empty, Stat } from "@/components/bits";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { addDays, formatDate, isSameDay, startOfDay } from "@/lib/format";
 
@@ -41,7 +40,31 @@ const startOfWeekSunday = (d: Date) => {
   return x;
 };
 
-type Pill = { label: string; color: string; title: string };
+// Palette exata do design escuro.
+// Verde #10b981 = emerald-500 · Vermelho #f43f5e = rose-500.
+const CARD = "rounded-2xl border border-[#1e232d] bg-[#13161c]";
+const HOVER = "hover:bg-[#1a1f29]";
+
+type Pill = { label: string; prefix: string; color: string; dot: string; title: string };
+
+function MetricCard({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "green" | "red";
+}) {
+  const valueColor =
+    tone === "green" ? "text-emerald-500" : tone === "red" ? "text-rose-500" : "text-foreground";
+  return (
+    <div className={`${CARD} p-5`}>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`mt-2 font-display text-2xl font-semibold sm:text-3xl ${valueColor}`}>{value}</p>
+    </div>
+  );
+}
 
 function SideSection({
   title,
@@ -57,7 +80,7 @@ function SideSection({
   const [open, setOpen] = useState(defaultOpen);
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm font-medium hover:bg-secondary">
+      <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm font-medium hover:bg-[#1a1f29]">
         <span>
           {title} <span className="text-xs text-muted-foreground">({count})</span>
         </span>
@@ -99,9 +122,8 @@ function CalendarPage() {
   const totalQuestions = logs.reduce((a, l) => a + l.total, 0);
   const totalCorrect = logs.reduce((a, l) => a + l.correct, 0);
   const avgAccuracy = totalQuestions ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
-  const totalCards = deckSessions.reduce((a, d) => a + d.cards_reviewed, 0);
 
-  // Progresso por Grande Área (CORE_AREAS).
+  // Distribuição de desempenho pelas 5 Grandes Áreas (CORE_AREAS).
   const areaProgress = CORE_AREAS.map((area) => {
     const areaSubjects = subjects.filter((s) => {
       const d = disciplineById.get(s.discipline_id);
@@ -112,7 +134,7 @@ function CalendarPage() {
     return { area: area.area, total: areaSubjects.length, studied, pct };
   }).filter((a) => a.total > 0);
 
-  // --- Pílulas por dia (agendado + concluído) ---
+  // --- Pílulas por dia (agendado no SRS) ---
   const pillsByDay = new Map<string, Pill[]>();
   const addPill = (k: string, pill: Pill) => {
     const list = pillsByDay.get(k) ?? [];
@@ -124,8 +146,10 @@ function CalendarPage() {
     const overdue = new Date(at).getTime() < today.getTime();
     addPill(k, {
       label: name,
-      title: `${name} · ${overdue ? "atrasada" : "agendada"} · ${formatDate(at)}`,
-      color: overdue ? "bg-rose/15 text-rose" : "bg-emerald-500/15 text-emerald-600",
+      prefix: overdue ? "!" : "✓",
+      title: `${name} · ${overdue ? "atrasada" : "em dia"} · ${formatDate(at)}`,
+      color: overdue ? "bg-rose-500/15 text-rose-500" : "bg-emerald-500/15 text-emerald-500",
+      dot: overdue ? "bg-rose-500" : "bg-emerald-500",
     });
   };
   for (const s of subjects) if (s.next_review_at) pushScheduled(s.name, s.next_review_at);
@@ -165,82 +189,80 @@ function CalendarPage() {
     .sort((a, b) => b.snap.priority_score - a.snap.priority_score)
     .slice(0, 6);
 
-  const reviewRow = (item: { key: string; name: string; at: string; subjectId: string | null }, overdue: boolean) =>
-    item.subjectId ? (
-      <Link
-        key={item.key}
-        to="/assuntos/$id"
-        params={{ id: item.subjectId }}
-        search={{ tipo: "questoes" }}
-        className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary"
-      >
-        <span className={`h-2 w-2 shrink-0 rounded-full ${overdue ? "bg-rose" : "bg-violet"}`} />
+  const reviewRow = (item: { key: string; name: string; at: string; subjectId: string | null }, overdue: boolean) => {
+    const cls = `flex items-center gap-2 rounded-lg border border-[#1e232d] bg-[#13161c] px-3 py-2 ${HOVER}`;
+    const dot = `h-2 w-2 shrink-0 rounded-full ${overdue ? "bg-rose-500" : "bg-emerald-500"}`;
+    const dateColor = `shrink-0 text-xs ${overdue ? "text-rose-500" : "text-muted-foreground"}`;
+    const inner = (
+      <>
+        <span className={dot} />
         <span className="min-w-0 flex-1 truncate">{item.name}</span>
-        <span className={`shrink-0 text-xs ${overdue ? "text-rose" : "text-muted-foreground"}`}>
-          {formatDate(item.at)}
-        </span>
+        <span className={dateColor}>{formatDate(item.at)}</span>
+      </>
+    );
+    return item.subjectId ? (
+      <Link key={item.key} to="/assuntos/$id" params={{ id: item.subjectId }} search={{ tipo: "questoes" }} className={cls}>
+        {inner}
       </Link>
     ) : (
-      <Link key={item.key} to="/baralhos" className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${overdue ? "bg-rose" : "bg-sage"}`} />
-        <span className="min-w-0 flex-1 truncate">{item.name}</span>
-        <span className={`shrink-0 text-xs ${overdue ? "text-rose" : "text-muted-foreground"}`}>
-          {formatDate(item.at)}
-        </span>
+      <Link key={item.key} to="/baralhos" className={cls}>
+        {inner}
       </Link>
     );
+  };
 
   return (
-    <>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        <Stat label="Revisões hoje" value={String(reviewsToday)} tone="brand" />
-        <Stat label="Atrasadas" value={String(overdueCount)} tone={overdueCount > 0 ? "rose" : "default"} />
-        <Stat label="Concluídas" value={String(completedCount)} />
-        <Stat label="Acerto médio" value={totalQuestions ? `${avgAccuracy}%` : "—"} />
-        <Stat label="Cards revisados" value={String(totalCards)} />
+    <div className="-mx-4 -my-6 min-h-screen space-y-5 bg-[#0a0c10] px-4 py-6 sm:-mx-6 sm:px-6">
+      {/* Métricas */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <MetricCard label="Hoje" value={String(reviewsToday)} tone="green" />
+        <MetricCard label="Atrasadas" value={String(overdueCount)} tone={overdueCount > 0 ? "red" : "default"} />
+        <MetricCard label="Concluídas" value={String(completedCount)} />
+        <MetricCard label="Acerto médio" value={totalQuestions ? `${avgAccuracy}%` : "—"} />
       </div>
 
-      <Panel title="Progresso por Grande Área">
+      {/* Barra horizontal das 5 Grandes Áreas */}
+      <div className={`${CARD} p-5`}>
+        <h2 className="font-display text-base font-semibold">Grandes Áreas</h2>
         {areaProgress.length === 0 ? (
-          <Empty>Nenhum assunto registrado ainda.</Empty>
+          <p className="mt-3 text-sm text-muted-foreground">Nenhum assunto registrado ainda.</p>
         ) : (
-          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+          <div className="mt-4 flex gap-3 overflow-x-auto">
             {areaProgress.map((a) => (
-              <div key={a.area}>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium">{a.area}</span>
-                  <span className="text-muted-foreground">
-                    {a.studied}/{a.total}
-                  </span>
+              <div key={a.area} className="min-w-[110px] flex-1">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="truncate font-medium">{a.area}</span>
+                  <span className="shrink-0 text-muted-foreground">{a.pct}%</span>
                 </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full rounded-full bg-brand" style={{ width: `${a.pct}%` }} />
+                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#1e232d]">
+                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${a.pct}%` }} />
                 </div>
               </div>
             ))}
           </div>
         )}
-      </Panel>
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
-          <Panel
-            title={monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}
-            action={
+          <div className={`${CARD} p-5`}>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-display text-base font-semibold">
+                {monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}
+              </h2>
               <div className="flex items-center gap-2 text-xs">
-                <button className="rounded-lg border border-border px-2 py-1" onClick={() => setMonthOffset((m) => m - 1)}>
+                <button className="rounded-lg border border-[#1e232d] px-2 py-1" onClick={() => setMonthOffset((m) => m - 1)}>
                   ←
                 </button>
-                <button className="rounded-lg border border-border px-2 py-1" onClick={() => setMonthOffset(0)}>
+                <button className="rounded-lg border border-[#1e232d] px-2 py-1" onClick={() => setMonthOffset(0)}>
                   Hoje
                 </button>
-                <button className="rounded-lg border border-border px-2 py-1" onClick={() => setMonthOffset((m) => m + 1)}>
+                <button className="rounded-lg border border-[#1e232d] px-2 py-1" onClick={() => setMonthOffset((m) => m + 1)}>
                   →
                 </button>
               </div>
-            }
-          >
-            <div className="mb-2 grid grid-cols-7 gap-1.5">
+            </div>
+            <div className="mt-4 mb-2 grid grid-cols-7 gap-1.5">
               {WEEKDAYS.map((d) => (
                 <p key={d} className="text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   {d}
@@ -261,19 +283,17 @@ function CalendarPage() {
                     type="button"
                     onClick={() => setSelectedDay(k)}
                     className={`relative min-h-[56px] rounded-lg border p-1 text-left transition-colors ${
-                      isSelected
-                        ? "border-brand ring-1 ring-brand"
-                        : isToday
-                          ? "border-amber-400 ring-1 ring-amber-400"
-                          : "border-border hover:border-muted-foreground"
-                    } ${inMonth ? "bg-card" : "bg-muted/30 opacity-50"}`}
+                      isSelected || isToday
+                        ? "border-emerald-500 ring-1 ring-emerald-500"
+                        : "border-[#1e232d] hover:border-muted-foreground"
+                    } ${inMonth ? "bg-[#13161c]" : "bg-[#0d0f14] opacity-50"}`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className={`text-[11px] font-semibold ${isToday ? "text-amber-600" : ""}`}>
+                      <span className={`text-[11px] font-semibold ${isToday ? "text-emerald-500" : ""}`}>
                         {day.getDate()}
                       </span>
                       {completed > 0 && (
-                        <span className="text-[9px] font-semibold text-emerald-600">✓{completed}</span>
+                        <span className="text-[9px] font-semibold text-emerald-500">✓{completed}</span>
                       )}
                     </div>
                     <div className="mt-1 flex flex-col gap-0.5">
@@ -283,7 +303,7 @@ function CalendarPage() {
                           className={`truncate rounded px-1 py-0.5 text-[9px] font-semibold leading-none ${p.color}`}
                           title={p.title}
                         >
-                          {p.label}
+                          {p.prefix} {p.label}
                         </span>
                       ))}
                       {pills.length > 3 && (
@@ -296,40 +316,40 @@ function CalendarPage() {
                 );
               })}
             </div>
-          </Panel>
+          </div>
 
-          <Panel
-            title={
-              selectedDay
+          <div className={`${CARD} p-5`}>
+            <h2 className="font-display text-base font-semibold">
+              {selectedDay
                 ? new Date(`${selectedDay}T12:00:00`).toLocaleDateString("pt-BR", {
                     weekday: "long",
                     day: "numeric",
                     month: "long",
                   })
-                : "Selecione um dia"
-            }
-          >
+                : "Selecione um dia"}
+            </h2>
             {selectedPills.length === 0 ? (
-              <Empty>Nenhuma revisão agendada neste dia.</Empty>
+              <p className="mt-3 text-sm text-muted-foreground">Nenhuma revisão agendada neste dia.</p>
             ) : (
-              <div className="space-y-2 text-sm">
+              <div className="mt-3 space-y-2 text-sm">
                 {selectedPills.map((p, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${p.color.split(" ")[0]}`} />
+                  <div key={i} className="flex items-center gap-2 rounded-lg border border-[#1e232d] bg-[#13161c] px-3 py-2">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${p.dot}`} />
                     <span className="min-w-0 flex-1 truncate">{p.label}</span>
                   </div>
                 ))}
               </div>
             )}
-          </Panel>
+          </div>
         </div>
 
         <div className="space-y-5">
-          <Panel title="Revisões" className="p-3">
-            <div className="divide-y divide-border">
+          <div className={`${CARD} p-3`}>
+            <h2 className="px-2 pt-2 font-display text-base font-semibold">Revisões</h2>
+            <div className="divide-y divide-[#1e232d]">
               <SideSection title="Hoje" count={reviewsToday}>
                 <div className="space-y-2 pb-2 text-sm">
-                  {reviewsToday === 0 && <Empty>Nenhuma revisão hoje.</Empty>}
+                  {reviewsToday === 0 && <p className="py-2 text-center text-sm text-muted-foreground">Nenhuma revisão hoje.</p>}
                   {todaySubjects.map((s) =>
                     reviewRow({ key: `s:${s.id}`, name: s.name, at: s.next_review_at as string, subjectId: s.id }, false),
                   )}
@@ -340,7 +360,7 @@ function CalendarPage() {
               </SideSection>
               <SideSection title="Atrasadas" count={overdueCount}>
                 <div className="space-y-2 pb-2 text-sm">
-                  {overdueCount === 0 && <Empty>Nada atrasado. 🎉</Empty>}
+                  {overdueCount === 0 && <p className="py-2 text-center text-sm text-muted-foreground">Nada atrasado. 🎉</p>}
                   {overdueSubjects.map((s) =>
                     reviewRow({ key: `s:${s.id}`, name: s.name, at: s.next_review_at as string, subjectId: s.id }, true),
                   )}
@@ -351,23 +371,23 @@ function CalendarPage() {
               </SideSection>
               <SideSection title="Próximas" count={upcoming.length}>
                 <div className="space-y-2 pb-2 text-sm">
-                  {upcoming.length === 0 && <Empty>Nenhuma próxima revisão.</Empty>}
+                  {upcoming.length === 0 && <p className="py-2 text-center text-sm text-muted-foreground">Nenhuma próxima revisão.</p>}
                   {upcoming.slice(0, 12).map((item) => reviewRow(item, false))}
                 </div>
               </SideSection>
               <SideSection title="Prioridade alta" count={priority.length} defaultOpen={false}>
                 <div className="space-y-2 pb-2 text-sm">
-                  {priority.length === 0 && <Empty>Sem prioridade calculada ainda.</Empty>}
+                  {priority.length === 0 && <p className="py-2 text-center text-sm text-muted-foreground">Sem prioridade calculada ainda.</p>}
                   {priority.map(({ snap, subject }) => (
                     <Link
                       key={subject.id}
                       to="/assuntos/$id"
                       params={{ id: subject.id }}
                       search={{ tipo: "questoes" }}
-                      className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-secondary"
+                      className={`flex items-center gap-2 rounded-lg border border-[#1e232d] bg-[#13161c] px-3 py-2 ${HOVER}`}
                     >
                       <span className="min-w-0 flex-1 truncate">{subject.name}</span>
-                      <span className="shrink-0 rounded-full bg-rose/10 px-2 py-0.5 text-xs font-semibold text-rose">
+                      <span className="shrink-0 rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-semibold text-rose-500">
                         {snap.priority_score}
                       </span>
                     </Link>
@@ -375,9 +395,9 @@ function CalendarPage() {
                 </div>
               </SideSection>
             </div>
-          </Panel>
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
