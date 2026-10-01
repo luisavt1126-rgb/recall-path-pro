@@ -17,9 +17,8 @@ import { SubjectSubtopics } from "@/components/SubjectSubtopics";
 import { formatDate, formatDateTime, formatHours } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/assuntos/$id")({
-  validateSearch: (search: Record<string, unknown>): { tipo?: string } => ({
-    tipo: typeof search.tipo === "string" ? search.tipo : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { tipo?: string } =>
+    typeof search["tipo"] === "string" ? { tipo: search["tipo"] } : {},
   head: () => ({
     meta: [
       { title: "Assunto · Residuum" },
@@ -120,7 +119,7 @@ function SubjectDetail() {
           desempenho real. O intervalo é recalculado para manter cerca de 90% de retenção.
         </p>
         <div className="mt-3">
-          <ReviewRecorder subject={subject} initialType={tipo === "questoes" ? "questoes" : undefined} />
+          <ReviewRecorder subject={subject} {...(tipo === "questoes" ? { initialType: "questoes" as const } : {})} />
         </div>
       </Panel>
 

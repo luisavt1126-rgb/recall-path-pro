@@ -56,7 +56,7 @@ describe("histórico vazio", () => {
   it("vira NEW, score 0 e componentes zerados", () => {
     const r = computePrioritySnapshot(input());
     strictEqual(r.knowledgeState, "NEW");
-    strictEqual(r.priorityScore, 0);
+    strictEqual(r.priorityScore!, 0);
     strictEqual(r.questionScore, 0);
     strictEqual(r.overdueScore, 0);
     strictEqual(r.errorScore, 0);
@@ -169,7 +169,9 @@ describe("score total", () => {
 
   for (let i = 0; i < fixtures.length; i += 1) {
     it(`caso ${i}: soma dos componentes = score e 0..100`, () => {
-      const r = computePrioritySnapshot(fixtures[i]);
+      const fixture = fixtures[i];
+      if (!fixture) throw new Error(`Fixture ${i} não encontrada`);
+      const r = computePrioritySnapshot(fixture);
       ok(r.priorityScore >= 0 && r.priorityScore <= 100);
       strictEqual(
         r.priorityScore,
