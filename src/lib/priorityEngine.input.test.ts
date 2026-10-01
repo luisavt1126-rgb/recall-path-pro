@@ -91,13 +91,14 @@ describe("buildPriorityEngineInput", () => {
       decks: [],
       deckSessions: [{ rating: null, reviewedAt: ago(1) }],
       questionErrors: [],
+      questionErrors: [],
       now,
     });
 
     strictEqual(input.questionBlocks.length, 1);
-    strictEqual(input.questionBlocks[0]?.total, 10);
+    strictEqual(input.questionBlocks[0]!?.total, 10);
     strictEqual(input.subjectReviews.length, 1);
-    strictEqual(input.subjectReviews[0]?.rating, "bom");
+    strictEqual(input.subjectReviews[0]!?.rating, "bom");
     strictEqual(input.deckSessions.length, 1);
     strictEqual(input.deckSessions[0]?.rating, null);
     strictEqual(input.nextReviewAt, ago(3));
