@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { scheduleReview, nextDeckInterval, type Rating, type SrsState } from "@/lib/srs";
 import type { AnkiDeck, Subject } from "@/lib/data";
 import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
+import { dateInputToIso } from "@/lib/format";
 
 export async function requireUserId() {
   const { data } = await supabase.auth.getUser();
@@ -293,15 +294,17 @@ export function useRateDeck() {
       cards_done,
       completed,
       minutes,
+      date,
     }: {
       deck: AnkiDeck;
       cards_planned: number;
       cards_done: number;
       completed: boolean;
       minutes?: number;
+      date?: string;
     }) => {
       const userId = await requireUserId();
-      const now = new Date();
+      const now = date ? new Date(dateInputToIso(date)) : new Date();
       const planned = Number(cards_planned) || 0;
       const done = Number(cards_done) || 0;
       const effectiveCompleted = completed || (planned > 0 && done >= planned);
@@ -313,6 +316,7 @@ export function useRateDeck() {
         deck_id: deck.id,
         cards_reviewed: done,
         rating,
+        reviewed_at: now.toISOString(),
       });
       if (error) throw error;
 

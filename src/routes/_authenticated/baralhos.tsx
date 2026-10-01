@@ -14,7 +14,7 @@ import {
 } from "@/lib/data";
 import { type Rating } from "@/lib/srs";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
-import { formatDate, isSameDay } from "@/lib/format";
+import { formatDate, isSameDay, toDateInputValue } from "@/lib/format";
 
 
 export const Route = createFileRoute("/_authenticated/baralhos")({
@@ -423,6 +423,7 @@ function DeckSessionForm({
     cards_done: number;
     completed: boolean;
     minutes?: number;
+    date: string;
   }) => void;
   onRemove: () => void;
 }) {
@@ -430,6 +431,7 @@ function DeckSessionForm({
   const [done, setDone] = useState("");
   const [completed, setCompleted] = useState<boolean | null>(null);
   const [minutes, setMinutes] = useState("");
+  const [date, setDate] = useState(() => toDateInputValue(new Date()));
 
   const submit = () => {
     const plannedNum = Number(planned);
@@ -451,11 +453,13 @@ function DeckSessionForm({
       cards_done: doneNum,
       completed,
       minutes: Number(minutes) > 0 ? Number(minutes) : undefined,
+      date,
     });
     setPlanned("");
     setDone("");
     setCompleted(null);
     setMinutes("");
+    setDate(toDateInputValue(new Date()));
   };
 
   return (
@@ -501,6 +505,15 @@ function DeckSessionForm({
           </button>
         </div>
       </div>
+      <Field label="Data">
+        <input
+          type="date"
+          className={inputClass}
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          aria-label={`Data da sessão em ${deck.name}`}
+        />
+      </Field>
       <Field label="Tempo (min) — opcional">
         <input
           className={inputClass}
