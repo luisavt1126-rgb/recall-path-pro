@@ -47,7 +47,7 @@ export type ManualError = {
   errorCount: number;
   reason: string | null;
   /** "ativo" | "em_melhora" | "resolvido" | "recorrente" (default "ativo"). */
-  status?: string;
+  status?: string | undefined;
 };
 
 export type PriorityEngineInput = {

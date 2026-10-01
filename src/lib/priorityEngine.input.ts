@@ -49,7 +49,7 @@ export type RawQuestionError = {
   createdAt: string;
   errorCount: number;
   reason: string | null;
-  status?: string | null;
+  status?: string | null | undefined;
 };
 
 const RATING_VALUES: ReadonlySet<string> = new Set([
