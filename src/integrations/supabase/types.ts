@@ -342,6 +342,66 @@ export type Database = {
         }
         Relationships: []
       }
+      question_errors: {
+        Row: {
+          created_at: string
+          error_count: number
+          id: string
+          note: string | null
+          reason: string
+          status: string
+          subject_id: string
+          subtopic_id: string | null
+          subtopic_name: string | null
+          updated_at: string
+          user_id: string
+          what: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_count?: number
+          id?: string
+          note?: string | null
+          reason: string
+          status?: string
+          subject_id: string
+          subtopic_id?: string | null
+          subtopic_name?: string | null
+          updated_at?: string
+          user_id: string
+          what?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_count?: number
+          id?: string
+          note?: string | null
+          reason?: string
+          status?: string
+          subject_id?: string
+          subtopic_id?: string | null
+          subtopic_name?: string | null
+          updated_at?: string
+          user_id?: string
+          what?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_errors_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_errors_subtopic_id_fkey"
+            columns: ["subtopic_id"]
+            isOneToOne: false
+            referencedRelation: "subject_subtopics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       question_logs: {
         Row: {
           banca: string | null
@@ -553,6 +613,41 @@ export type Database = {
           },
         ]
       }
+      subject_subtopics: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          subject_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          subject_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          subject_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subject_subtopics_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subjects: {
         Row: {
           created_at: string
@@ -665,92 +760,6 @@ export type Database = {
         Relationships: []
       }
     }
-      question_errors: {
-        Row: {
-          created_at: string
-          error_count: number
-          id: string
-          reason: string
-          status: string
-          subject_id: string | null
-          subtopic_id: string | null
-          subtopic_name: string | null
-          user_id: string
-          what: string | null
-        }
-        Insert: {
-          created_at?: string
-          error_count: number
-          id?: string
-          reason: string
-          status?: string
-          subject_id?: string | null
-          subtopic_id?: string | null
-          subtopic_name?: string | null
-          user_id: string
-          what?: string | null
-        }
-        Update: {
-          created_at?: string
-          error_count?: number
-          id?: string
-          reason?: string
-          status?: string
-          subject_id?: string | null
-          subtopic_id?: string | null
-          subtopic_name?: string | null
-          user_id?: string
-          what?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "question_errors_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "question_errors_subtopic_id_fkey"
-            columns: ["subtopic_id"]
-            isOneToOne: false
-            referencedRelation: "subject_subtopics"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      subject_subtopics: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          subject_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          subject_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          subject_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "subject_subtopics_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     Views: {
       [_ in never]: never
     }

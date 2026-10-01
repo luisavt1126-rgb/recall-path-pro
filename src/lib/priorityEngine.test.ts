@@ -169,7 +169,7 @@ describe("score total", () => {
 
   for (let i = 0; i < fixtures.length; i += 1) {
     it(`caso ${i}: soma dos componentes = score e 0..100`, () => {
-      const r = computePrioritySnapshot(fixtures[i]);
+      const r = computePrioritySnapshot(fixtures[i]!);
       ok(r.priorityScore >= 0 && r.priorityScore <= 100);
       strictEqual(
         r.priorityScore,
