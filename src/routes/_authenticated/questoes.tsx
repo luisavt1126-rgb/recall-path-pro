@@ -11,7 +11,7 @@ import {
 import { useDisciplines, useQuestionLogs, useSubjects } from "@/lib/data";
 import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass } from "@/components/bits";
-import { formatDate, toDateInputValue, dateInputToIso } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/questoes")({
   head: () => ({
@@ -39,7 +39,6 @@ function QuestionsPage() {
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [total, setTotal] = useState("10");
   const [correct, setCorrect] = useState("7");
-  const [date, setDate] = useState(() => toDateInputValue(new Date()));
 
   const addLog = useMutation({
     mutationFn: async () => {
@@ -53,7 +52,6 @@ function QuestionsPage() {
         year: year ? Number(year) : null,
         total: Number(total),
         correct: Number(correct),
-        created_at: dateInputToIso(date),
       });
       if (error) throw error;
       if (subjectId) {
@@ -139,7 +137,7 @@ function QuestionsPage() {
             }
             addLog.mutate();
           }}
-          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
         >
           <Field label="Assunto">
             <select
@@ -171,14 +169,6 @@ function QuestionsPage() {
               inputMode="numeric"
             />
           </Field>
-          <Field label="Data">
-            <input
-              type="date"
-              className={inputClass}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </Field>
           <Field label="Total">
             <input
               className={inputClass}
@@ -195,7 +185,7 @@ function QuestionsPage() {
               inputMode="numeric"
             />
           </Field>
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-5">
             <button className={buttonClass}>Salvar registro</button>
           </div>
         </form>

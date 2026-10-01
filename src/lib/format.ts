@@ -71,15 +71,3 @@ export function daysBetween(a: Date | string, b: Date | string) {
 export function isSameDay(a: Date, b: Date) {
   return startOfDay(a).getTime() === startOfDay(b).getTime();
 }
-
-/** Formata uma data local como o valor de <input type="date"> (yyyy-mm-dd). */
-export function toDateInputValue(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-/** Converte o valor de <input type="date"> em ISO (meio-dia local, sem fuso). */
-export function dateInputToIso(value: string) {
-  const iso = new Date(`${value}T12:00:00`);
-  return Number.isNaN(iso.getTime()) ? new Date().toISOString() : iso.toISOString();
-}
