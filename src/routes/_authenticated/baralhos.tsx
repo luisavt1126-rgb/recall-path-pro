@@ -398,7 +398,7 @@ function downloadCsvModel() {
 }
 
 /** Converte a taxa de acerto (%) no rating Anki equivalente. */
-export function ratingFromAccuracy(accuracyPct: number): Rating {
+function ratingFromAccuracy(accuracyPct: number): Rating {
   if (accuracyPct >= 90) return "facil";
   if (accuracyPct >= 80) return "bom";
   if (accuracyPct >= 60) return "dificil";
