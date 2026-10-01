@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedBaralhosRouteImport } from './routes/_authenticated/baralhos'
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
+import { Route as AuthenticatedErrosRouteImport } from './routes/_authenticated/erros'
 import { Route as AuthenticatedGraficosRouteImport } from './routes/_authenticated/graficos'
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
 import { Route as AuthenticatedProvasRouteImport } from './routes/_authenticated/provas'
@@ -23,7 +24,6 @@ import { Route as AuthenticatedRevisoesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedTemporizadorRouteImport } from './routes/_authenticated/temporizador'
 import { Route as AuthenticatedAssuntosIndexRouteImport } from './routes/_authenticated/assuntos.index'
 import { Route as AuthenticatedAssuntosIdRouteImport } from './routes/_authenticated/assuntos.$id'
-import { Route as AuthenticatedErrosRouteImport } from './routes/_authenticated/erros'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -55,6 +55,11 @@ const AuthenticatedConfiguracoesRoute =
     path: '/configuracoes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedErrosRoute = AuthenticatedErrosRouteImport.update({
+  id: '/erros',
+  path: '/erros',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedGraficosRoute = AuthenticatedGraficosRouteImport.update({
   id: '/graficos',
   path: '/graficos',
@@ -97,11 +102,6 @@ const AuthenticatedAssuntosIdRoute = AuthenticatedAssuntosIdRouteImport.update({
   path: '/assuntos/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedErrosRoute = AuthenticatedErrosRouteImport.update({
-  id: '/erros',
-  path: '/erros',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -109,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/baralhos': typeof AuthenticatedBaralhosRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
+  '/erros': typeof AuthenticatedErrosRoute
   '/graficos': typeof AuthenticatedGraficosRoute
   '/hoje': typeof AuthenticatedHojeRoute
   '/provas': typeof AuthenticatedProvasRoute
@@ -117,7 +118,6 @@ export interface FileRoutesByFullPath {
   '/temporizador': typeof AuthenticatedTemporizadorRoute
   '/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/assuntos/': typeof AuthenticatedAssuntosIndexRoute
-  '/erros': typeof AuthenticatedErrosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -125,6 +125,7 @@ export interface FileRoutesByTo {
   '/baralhos': typeof AuthenticatedBaralhosRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
+  '/erros': typeof AuthenticatedErrosRoute
   '/graficos': typeof AuthenticatedGraficosRoute
   '/hoje': typeof AuthenticatedHojeRoute
   '/provas': typeof AuthenticatedProvasRoute
@@ -133,7 +134,6 @@ export interface FileRoutesByTo {
   '/temporizador': typeof AuthenticatedTemporizadorRoute
   '/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/assuntos': typeof AuthenticatedAssuntosIndexRoute
-  '/erros': typeof AuthenticatedErrosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -143,6 +143,7 @@ export interface FileRoutesById {
   '/_authenticated/baralhos': typeof AuthenticatedBaralhosRoute
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
+  '/_authenticated/erros': typeof AuthenticatedErrosRoute
   '/_authenticated/graficos': typeof AuthenticatedGraficosRoute
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
   '/_authenticated/provas': typeof AuthenticatedProvasRoute
@@ -151,7 +152,6 @@ export interface FileRoutesById {
   '/_authenticated/temporizador': typeof AuthenticatedTemporizadorRoute
   '/_authenticated/assuntos/$id': typeof AuthenticatedAssuntosIdRoute
   '/_authenticated/assuntos/': typeof AuthenticatedAssuntosIndexRoute
-  '/_authenticated/erros': typeof AuthenticatedErrosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,6 +161,7 @@ export interface FileRouteTypes {
     | '/baralhos'
     | '/calendario'
     | '/configuracoes'
+    | '/erros'
     | '/graficos'
     | '/hoje'
     | '/provas'
@@ -169,7 +170,6 @@ export interface FileRouteTypes {
     | '/temporizador'
     | '/assuntos/$id'
     | '/assuntos/'
-    | '/erros'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -177,6 +177,7 @@ export interface FileRouteTypes {
     | '/baralhos'
     | '/calendario'
     | '/configuracoes'
+    | '/erros'
     | '/graficos'
     | '/hoje'
     | '/provas'
@@ -185,7 +186,6 @@ export interface FileRouteTypes {
     | '/temporizador'
     | '/assuntos/$id'
     | '/assuntos'
-    | '/erros'
   id:
     | '__root__'
     | '/'
@@ -194,6 +194,7 @@ export interface FileRouteTypes {
     | '/_authenticated/baralhos'
     | '/_authenticated/calendario'
     | '/_authenticated/configuracoes'
+    | '/_authenticated/erros'
     | '/_authenticated/graficos'
     | '/_authenticated/hoje'
     | '/_authenticated/provas'
@@ -202,7 +203,6 @@ export interface FileRouteTypes {
     | '/_authenticated/temporizador'
     | '/_authenticated/assuntos/$id'
     | '/_authenticated/assuntos/'
-    | '/_authenticated/erros'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -253,6 +253,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/configuracoes'
       preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/erros': {
+      id: '/_authenticated/erros'
+      path: '/erros'
+      fullPath: '/erros'
+      preLoaderRoute: typeof AuthenticatedErrosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/graficos': {
@@ -311,13 +318,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssuntosIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/erros': {
-      id: '/_authenticated/erros'
-      path: '/erros'
-      fullPath: '/erros'
-      preLoaderRoute: typeof AuthenticatedErrosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
   }
 }
 
@@ -325,6 +325,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBaralhosRoute: typeof AuthenticatedBaralhosRoute
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
+  AuthenticatedErrosRoute: typeof AuthenticatedErrosRoute
   AuthenticatedGraficosRoute: typeof AuthenticatedGraficosRoute
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
   AuthenticatedProvasRoute: typeof AuthenticatedProvasRoute
@@ -333,13 +334,13 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTemporizadorRoute: typeof AuthenticatedTemporizadorRoute
   AuthenticatedAssuntosIdRoute: typeof AuthenticatedAssuntosIdRoute
   AuthenticatedAssuntosIndexRoute: typeof AuthenticatedAssuntosIndexRoute
-  AuthenticatedErrosRoute: typeof AuthenticatedErrosRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBaralhosRoute: AuthenticatedBaralhosRoute,
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
+  AuthenticatedErrosRoute: AuthenticatedErrosRoute,
   AuthenticatedGraficosRoute: AuthenticatedGraficosRoute,
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
   AuthenticatedProvasRoute: AuthenticatedProvasRoute,
@@ -348,7 +349,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTemporizadorRoute: AuthenticatedTemporizadorRoute,
   AuthenticatedAssuntosIdRoute: AuthenticatedAssuntosIdRoute,
   AuthenticatedAssuntosIndexRoute: AuthenticatedAssuntosIndexRoute,
-  AuthenticatedErrosRoute: AuthenticatedErrosRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
