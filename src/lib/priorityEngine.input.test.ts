@@ -91,7 +91,6 @@ describe("buildPriorityEngineInput", () => {
       decks: [],
       deckSessions: [{ rating: null, reviewedAt: ago(1) }],
       questionErrors: [],
-      questionErrors: [],
       now,
     });
 
