@@ -12,7 +12,7 @@ import {
   deckAccuracy,
   type AnkiDeck,
 } from "@/lib/data";
-import { RATINGS, RATING_LABEL, type Rating } from "@/lib/srs";
+import { type Rating } from "@/lib/srs";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { formatDate, isSameDay } from "@/lib/format";
 
@@ -406,9 +406,9 @@ export function ratingFromAccuracy(accuracyPct: number): Rating {
 }
 
 /**
- * Registro de sessão: o rating é calculado automaticamente a partir de
- * "Cartões corretos / Total revisado" (≥90% Fácil, 80–89% Bom, 60–79% Difícil,
- * <60% Novamente). Há um modo manual opcional com os 4 níveis do Anki.
+ * Registro de sessão de Anki/Flashcards: informa apenas a quantidade planejada,
+ * a quantidade feita e se a sessão foi concluída — sem contagem de erros nem
+ * rating manual (dado inviável de extrair do Anki durante o estudo).
  */
 function DeckSessionForm({
   deck,
@@ -419,127 +419,109 @@ function DeckSessionForm({
   deck: AnkiDeck;
   pending: boolean;
   onLog: (payload: {
-    cards: number;
-    rating: Rating;
-    correct: number | null;
-    total: number | null;
+    cards_planned: number;
+    cards_done: number;
+    completed: boolean;
+    minutes?: number;
   }) => void;
   onRemove: () => void;
 }) {
-  const [correct, setCorrect] = useState("");
-  const [total, setTotal] = useState("");
-  const [manual, setManual] = useState(false);
+  const [planned, setPlanned] = useState("");
+  const [done, setDone] = useState("");
+  const [completed, setCompleted] = useState<boolean | null>(null);
+  const [minutes, setMinutes] = useState("");
 
-  const submitAuto = () => {
-    const totalNum = Number(total);
-    const correctNum = Number(correct);
-    if (total.trim() === "" || totalNum <= 0) {
-      toast.error("Informe o total de cartões revisados");
+  const submit = () => {
+    const plannedNum = Number(planned);
+    const doneNum = Number(done);
+    if (planned.trim() === "" || plannedNum <= 0) {
+      toast.error("Informe a quantidade planejada para o dia");
       return;
     }
-    if (correct.trim() === "" || correctNum < 0 || correctNum > totalNum) {
-      toast.error("Cartões corretos precisa ser entre 0 e o total revisado");
+    if (done.trim() === "" || doneNum < 0) {
+      toast.error("Informe a quantidade de cards feitos");
       return;
     }
-    const rating = ratingFromAccuracy(Math.round((correctNum / totalNum) * 100));
-    onLog({ cards: totalNum, rating, correct: correctNum, total: totalNum });
-    setCorrect("");
-    setTotal("");
-  };
-
-  const submitManual = (rating: Rating) => {
-    const totalNum = Number(total);
-    const correctNum = Number(correct);
-    const hasScore = total.trim() !== "" && totalNum > 0;
-    if (hasScore && (correct.trim() === "" || correctNum < 0 || correctNum > totalNum)) {
-      toast.error("Cartões corretos precisa ser entre 0 e o total revisado");
+    if (completed === null) {
+      toast.error("Informe se concluiu a sessão");
       return;
     }
     onLog({
-      cards: hasScore ? totalNum : 0,
-      rating,
-      correct: hasScore ? correctNum : null,
-      total: hasScore ? totalNum : null,
+      cards_planned: plannedNum,
+      cards_done: doneNum,
+      completed,
+      minutes: Number(minutes) > 0 ? Number(minutes) : undefined,
     });
-    setCorrect("");
-    setTotal("");
+    setPlanned("");
+    setDone("");
+    setCompleted(null);
+    setMinutes("");
   };
 
   return (
     <div className="mt-3 space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Cartões corretos">
+        <Field label="Cards planejados">
           <input
             className={inputClass}
             inputMode="numeric"
-            value={correct}
-            onChange={(e) => setCorrect(e.target.value)}
-            placeholder="18"
-            aria-label={`Cartões corretos em ${deck.name}`}
+            value={planned}
+            onChange={(e) => setPlanned(e.target.value)}
+            placeholder="20"
+            aria-label={`Cards planejados em ${deck.name}`}
           />
         </Field>
-        <Field label="Total revisado">
+        <Field label="Cards feitos">
           <input
             className={inputClass}
             inputMode="numeric"
-            value={total}
-            onChange={(e) => setTotal(e.target.value)}
-            placeholder="20"
-            aria-label={`Total de cartões revisados em ${deck.name}`}
+            value={done}
+            onChange={(e) => setDone(e.target.value)}
+            placeholder="18"
+            aria-label={`Cards feitos em ${deck.name}`}
           />
         </Field>
       </div>
-      {!manual ? (
-        <>
-          <div className="flex flex-wrap items-center gap-2">
-            <button className={buttonClass} disabled={pending} onClick={submitAuto}>
-              Registrar sessão
-            </button>
-            <button
-              className="ml-auto text-xs text-muted-foreground hover:text-rose"
-              onClick={onRemove}
-            >
-              Remover
-            </button>
-          </div>
+      <div>
+        <p className="text-xs font-medium text-muted-foreground">Concluiu a sessão planejada?</p>
+        <div className="mt-1 flex gap-2">
           <button
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-            onClick={() => setManual(true)}
+            type="button"
+            onClick={() => setCompleted(true)}
+            className={completed === true ? buttonClass : ghostButtonClass}
           >
-            Não sei o número — avaliar manualmente
+            Sim
           </button>
-        </>
-      ) : (
-        <>
-          <p className="text-[11px] text-muted-foreground">
-            Avaliação manual — os campos numéricos são opcionais aqui.
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            {RATINGS.map((rating) => (
-              <button
-                key={rating}
-                className={rating === "bom" ? buttonClass : ghostButtonClass}
-                disabled={pending}
-                onClick={() => submitManual(rating)}
-              >
-                {RATING_LABEL[rating]}
-              </button>
-            ))}
-            <button
-              className="ml-auto text-xs text-muted-foreground hover:text-rose"
-              onClick={onRemove}
-            >
-              Remover
-            </button>
-          </div>
           <button
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-            onClick={() => setManual(false)}
+            type="button"
+            onClick={() => setCompleted(false)}
+            className={completed === false ? buttonClass : ghostButtonClass}
           >
-            Voltar ao registro por acertos
+            Não
           </button>
-        </>
-      )}
+        </div>
+      </div>
+      <Field label="Tempo (min) — opcional">
+        <input
+          className={inputClass}
+          inputMode="numeric"
+          value={minutes}
+          onChange={(e) => setMinutes(e.target.value)}
+          placeholder="10"
+          aria-label={`Tempo em minutos em ${deck.name}`}
+        />
+      </Field>
+      <div className="flex flex-wrap items-center gap-2">
+        <button className={buttonClass} disabled={pending} onClick={submit}>
+          Registrar sessão
+        </button>
+        <button
+          className="ml-auto text-xs text-muted-foreground hover:text-rose"
+          onClick={onRemove}
+        >
+          Remover
+        </button>
+      </div>
     </div>
   );
 }

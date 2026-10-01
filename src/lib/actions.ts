@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { scheduleReview, nextDeckInterval, RATING_LABEL, type Rating, type SrsState } from "@/lib/srs";
+import { scheduleReview, nextDeckInterval, type Rating, type SrsState } from "@/lib/srs";
 import type { AnkiDeck, Subject } from "@/lib/data";
 import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
 
@@ -274,39 +274,45 @@ export async function nudgeMastery(subjectId: string, delta: number) {
 }
 
 /**
- * Registra uma sessão de baralho com os 4 níveis do Anki.
- * O intervalo é recalculado pela mesma lógica de SRS (srs.ts) e o domínio do
- * assunto vinculado é ajustado pela taxa de acerto real (80/20) quando houver
- * pontuação, ou por um empurrão leve conforme o nível escolhido.
+ * Registra uma sessão de baralho (Anki/Flashcards) informando apenas a
+ * quantidade planejada, a quantidade feita e se a sessão foi concluída —
+ * sem contagem de erros nem rating manual (esse dado é inviável de extrair
+ * do Anki durante o estudo).
+ *
+ * - Concluída (completed = true, ou feitos >= planejados): expande o intervalo
+ *   do SRS e agenda a próxima revisão.
+ * - Não concluída: reseta o intervalo para D+1, mantendo o baralho nas
+ *   pendências da Tela Hoje e do Calendário.
  */
 export function useRateDeck() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
       deck,
-      rating,
-      cards = 0,
-      correct = null,
-      total = null,
+      cards_planned,
+      cards_done,
+      completed,
+      minutes,
     }: {
       deck: AnkiDeck;
-      rating: Rating;
-      cards?: number;
-      correct?: number | null;
-      total?: number | null;
+      cards_planned: number;
+      cards_done: number;
+      completed: boolean;
+      minutes?: number;
     }) => {
       const userId = await requireUserId();
       const now = new Date();
+      const planned = Number(cards_planned) || 0;
+      const done = Number(cards_done) || 0;
+      const effectiveCompleted = completed || (planned > 0 && done >= planned);
+      const rating: Rating = effectiveCompleted ? "facil" : "muito_dificil";
       const interval = nextDeckInterval(Number(deck.interval_days), rating);
-      const hasScore = (total ?? 0) > 0 && correct !== null && correct !== undefined;
 
       const { error } = await supabase.from("deck_sessions").insert({
         user_id: userId,
         deck_id: deck.id,
-        cards_reviewed: cards || (hasScore ? (total as number) : 0),
+        cards_reviewed: done,
         rating,
-        correct_cards: hasScore ? correct : null,
-        total_cards: hasScore ? total : null,
       });
       if (error) throw error;
 
@@ -316,30 +322,24 @@ export function useRateDeck() {
           interval_days: interval,
           last_review_at: now.toISOString(),
           next_review_at: new Date(now.getTime() + interval * 86_400_000).toISOString(),
-          status: rating === "muito_dificil" || rating === "dificil" ? "reforco" : "revisao",
+          status: effectiveCompleted ? "revisao" : "reforco",
         })
         .eq("id", deck.id);
       if (updateError) throw updateError;
 
-      if (deck.subject_id) {
-        await startSubjectCycle(deck.subject_id, now.toISOString());
-        if (hasScore) {
-          await nudgeMasteryFromQuestions(
-            deck.subject_id,
-            Math.round(((correct as number) / (total as number)) * 100),
-          );
-        } else {
-          const delta: Record<Rating, number> = {
-            muito_dificil: -6,
-            dificil: -2,
-            bom: 3,
-            facil: 5,
-          };
-          await nudgeMastery(deck.subject_id, delta[rating]);
-        }
+      if (minutes && minutes > 0) {
+        const { error: sessionError } = await supabase.from("study_sessions").insert({
+          user_id: userId,
+          subject_id: deck.subject_id,
+          activity_type: "anki",
+          minutes,
+          started_at: now.toISOString(),
+        });
+        if (sessionError) throw sessionError;
       }
 
       if (deck.subject_id) {
+        await startSubjectCycle(deck.subject_id, now.toISOString());
         void recalculateSubjectPriority(userId, deck.subject_id).catch((err) => {
           console.warn("Falha ao recalcular prioridade do assunto", deck.subject_id, err);
         });
@@ -347,11 +347,9 @@ export function useRateDeck() {
 
       return { interval, rating };
     },
-    onSuccess: ({ interval, rating }) => {
+    onSuccess: ({ interval }) => {
       qc.invalidateQueries();
-      toast.success(
-        `Sessão registrada · classificado como ${RATING_LABEL[rating]} · próxima em ${interval} dia(s)`,
-      );
+      toast.success(`Sessão registrada · próxima em ${interval} dia(s)`);
     },
     onError: (error: Error) => toast.error(error.message),
   });
