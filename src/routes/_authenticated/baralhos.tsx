@@ -456,7 +456,7 @@ function DeckSessionForm({
       cards_planned: plannedNum,
       cards_done: doneNum,
       completed,
-      minutes: Number(minutes) > 0 ? Number(minutes) : undefined,
+      ...(Number(minutes) > 0 ? { minutes: Number(minutes) } : {}),
       date,
     });
     setPlanned("");
