@@ -668,23 +668,27 @@ export type Database = {
           created_at: string
           error_count: number
           id: string
+          note: string | null
           reason: string
           status: string
-          subject_id: string | null
+          subject_id: string
           subtopic_id: string | null
           subtopic_name: string | null
+          updated_at: string
           user_id: string
           what: string | null
         }
         Insert: {
           created_at?: string
-          error_count: number
+          error_count?: number
           id?: string
+          note?: string | null
           reason: string
           status?: string
-          subject_id?: string | null
+          subject_id: string
           subtopic_id?: string | null
           subtopic_name?: string | null
+          updated_at?: string
           user_id: string
           what?: string | null
         }
@@ -692,11 +696,13 @@ export type Database = {
           created_at?: string
           error_count?: number
           id?: string
+          note?: string | null
           reason?: string
           status?: string
-          subject_id?: string | null
+          subject_id?: string
           subtopic_id?: string | null
           subtopic_name?: string | null
+          updated_at?: string
           user_id?: string
           what?: string | null
         }
@@ -723,6 +729,7 @@ export type Database = {
           id: string
           name: string
           subject_id: string
+          updated_at: string
           user_id: string
         }
         Insert: {
@@ -730,6 +737,7 @@ export type Database = {
           id?: string
           name: string
           subject_id: string
+          updated_at?: string
           user_id: string
         }
         Update: {
@@ -737,6 +745,7 @@ export type Database = {
           id?: string
           name?: string
           subject_id?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
