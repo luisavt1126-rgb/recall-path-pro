@@ -9,7 +9,7 @@ import {
   nudgeMasteryFromQuestions,
 } from "@/lib/actions";
 import { useDisciplines, useQuestionLogs, useSubjects } from "@/lib/data";
-import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
+import { refreshSubjectPriority } from "@/lib/priorityEngine.service";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass } from "@/components/bits";
 import { formatDate, toDateInputValue, dateInputToIso } from "@/lib/format";
 
@@ -67,9 +67,7 @@ function QuestionsPage() {
       }
 
       if (subjectId) {
-        void recalculateSubjectPriority(userId, subjectId).catch((err) => {
-          console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
-        });
+        await refreshSubjectPriority(userId, subjectId);
       }
     },
     onSuccess: () => {

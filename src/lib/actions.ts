@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { scheduleReview, nextDeckInterval, type Rating, type SrsState } from "@/lib/srs";
 import type { AnkiDeck, Subject } from "@/lib/data";
-import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
+import { refreshSubjectPriority } from "@/lib/priorityEngine.service";
 import { dateInputToIso } from "@/lib/format";
 
 export async function requireUserId() {
@@ -67,9 +67,7 @@ export function useRateSubject() {
         if (sessionError) throw sessionError;
       }
 
-      void recalculateSubjectPriority(userId, subject.id).catch((err) => {
-        console.warn("Falha ao recalcular prioridade do assunto", subject.id, err);
-      });
+      await refreshSubjectPriority(userId, subject.id);
 
       return next;
     },
@@ -123,9 +121,7 @@ export function useLogStudySession() {
       }
 
       if (input.subject_id) {
-        void recalculateSubjectPriority(userId, input.subject_id).catch((err) => {
-          console.warn("Falha ao recalcular prioridade do assunto", input.subject_id, err);
-        });
+        await refreshSubjectPriority(userId, input.subject_id);
       }
     },
     onSuccess: () => {
@@ -186,14 +182,13 @@ export function useSetSubjectPrep() {
       if (error) throw error;
       if (done) await startSubjectCycle(subject.id, now);
 
-      void recalculateSubjectPriority(subject.user_id, subject.id).catch((err) => {
-        console.warn("Falha ao recalcular prioridade do assunto", subject.id, err);
-      });
+      await refreshSubjectPriority(subject.user_id, subject.id);
 
       return done;
     },
     onSuccess: (done) => {
       qc.invalidateQueries({ queryKey: ["subjects"] });
+      qc.invalidateQueries({ queryKey: ["subject_priority_snapshots"] });
       toast.success(done ? "Marcado como pronto" : "Marcação removida");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -225,12 +220,11 @@ export function useSetSubjectPrepDate() {
       if (error) throw error;
       await startSubjectCycle(subject.id, iso);
 
-      void recalculateSubjectPriority(subject.user_id, subject.id).catch((err) => {
-        console.warn("Falha ao recalcular prioridade do assunto", subject.id, err);
-      });
+      await refreshSubjectPriority(subject.user_id, subject.id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["subjects"] });
+      qc.invalidateQueries({ queryKey: ["subject_priority_snapshots"] });
       toast.success("Data atualizada");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -344,9 +338,7 @@ export function useRateDeck() {
 
       if (deck.subject_id) {
         await startSubjectCycle(deck.subject_id, now.toISOString());
-        void recalculateSubjectPriority(userId, deck.subject_id).catch((err) => {
-          console.warn("Falha ao recalcular prioridade do assunto", deck.subject_id, err);
-        });
+        await refreshSubjectPriority(userId, deck.subject_id);
       }
 
       return { interval, rating };

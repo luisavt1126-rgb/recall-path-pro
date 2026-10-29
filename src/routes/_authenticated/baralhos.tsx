@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { requireUserId, useRateDeck } from "@/lib/actions";
-import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
+import { refreshSubjectPriority } from "@/lib/priorityEngine.service";
 import {
   useDecks,
   useDeckSessions,
@@ -143,9 +143,7 @@ function DecksPage() {
       }
     }
     for (const subjectId of touched) {
-      void recalculateSubjectPriority(userId, subjectId).catch((err) => {
-        console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
-      });
+      await refreshSubjectPriority(userId, subjectId);
     }
     qc.invalidateQueries();
     toast.success(`${created} criado(s), ${updated} atualizado(s) e ${sessions} sessão(ões) importada(s)`);

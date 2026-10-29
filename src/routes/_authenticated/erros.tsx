@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { requireUserId } from "@/lib/actions";
-import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
+import { refreshSubjectPriority } from "@/lib/priorityEngine.service";
 import {
   ERROR_REASONS,
   useSubjects,
@@ -123,13 +123,12 @@ function ErrosPage() {
       );
       if (error) throw error;
 
-      void recalculateSubjectPriority(userId, resolvedSubjectId).catch((err) => {
-        console.warn("Falha ao recalcular prioridade do assunto", resolvedSubjectId, err);
-      });
+      await refreshSubjectPriority(userId, resolvedSubjectId);
     },
     onSuccess: () => {
       resetForm();
       qc.invalidateQueries({ queryKey: ["question_errors"] });
+      qc.invalidateQueries({ queryKey: ["subject_priority_snapshots"] });
       qc.invalidateQueries({ queryKey: ["subjects"] });
       toast.success(editingId ? "Erro atualizado" : "Erros registrados");
     },
@@ -141,12 +140,11 @@ function ErrosPage() {
       const userId = await requireUserId();
       const { error } = await supabase.from("question_errors").delete().eq("id", id);
       if (error) throw error;
-      void recalculateSubjectPriority(userId, subjectId).catch((err) => {
-        console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
-      });
+      await refreshSubjectPriority(userId, subjectId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["question_errors"] });
+      qc.invalidateQueries({ queryKey: ["subject_priority_snapshots"] });
       toast.success("Erro removido");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -157,12 +155,11 @@ function ErrosPage() {
       const userId = await requireUserId();
       const { error } = await supabase.from("question_errors").update({ status: "resolvido" }).eq("id", id);
       if (error) throw error;
-      void recalculateSubjectPriority(userId, subjectId).catch((err) => {
-        console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
-      });
+      await refreshSubjectPriority(userId, subjectId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["question_errors"] });
+      qc.invalidateQueries({ queryKey: ["subject_priority_snapshots"] });
       toast.success("Erro marcado como resolvido");
     },
     onError: (e: Error) => toast.error(e.message),

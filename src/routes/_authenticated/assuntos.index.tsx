@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { requireUserId, startSubjectCycle } from "@/lib/actions";
-import { recalculateSubjectPriority } from "@/lib/priorityEngine.service";
+import { refreshSubjectPriority } from "@/lib/priorityEngine.service";
 import { CORE_AREAS } from "@/lib/areas";
 import {
   EMPTY_STATS,
@@ -179,9 +179,7 @@ function SubjectsPage() {
         await startSubjectCycle(id, now);
       }
 
-      void recalculateSubjectPriority(userId, id).catch((err) => {
-        console.warn("Falha ao recalcular prioridade do assunto", id, err);
-      });
+      await refreshSubjectPriority(userId, id);
 
       return id;
     },

@@ -123,6 +123,23 @@ export async function recalculateSubjectPriority(
   return result;
 }
 
+/**
+ * Recalcula o snapshot de um assunto depois de uma gravação e espera terminar,
+ * para que a invalidação das consultas (no `onSuccess` da mutation) já
+ * encontre o valor novo. Uma falha aqui nunca derruba a gravação do usuário:
+ * apenas registra o aviso — o recálculo diário corrige o snapshot depois.
+ */
+export async function refreshSubjectPriority(
+  userId: string,
+  subjectId: string,
+): Promise<void> {
+  try {
+    await recalculateSubjectPriority(userId, subjectId);
+  } catch (err) {
+    console.warn("Falha ao recalcular prioridade do assunto", subjectId, err);
+  }
+}
+
 export type RecalculateAllResult = {
   total: number;
   success: number;
