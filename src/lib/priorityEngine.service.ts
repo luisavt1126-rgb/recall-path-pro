@@ -107,7 +107,12 @@ export async function recalculateSubjectPriority(
     ),
     decks: (decks ?? []).map((d): RawDeck => ({ nextReviewAt: d.next_review_at })),
     deckSessions: deckSessionRows.map(
-      (ds): RawDeckSession => ({ rating: ds.rating, reviewedAt: ds.reviewed_at }),
+      (ds): RawDeckSession => ({
+        rating: ds.rating,
+        reviewedAt: ds.reviewed_at,
+        totalCards: ds.total_cards,
+        correctCards: ds.correct_cards,
+      }),
     ),
     questionErrors: (questionErrors ?? []).map(
       (e): RawQuestionError => ({
@@ -226,7 +231,7 @@ export async function recalculateAllSubjects(
       fetchAllPages((a, b) =>
         supabase
           .from("deck_sessions")
-          .select("deck_id, rating, reviewed_at")
+          .select("deck_id, rating, reviewed_at, total_cards, correct_cards")
           .eq("user_id", userId)
           .order("id")
           .range(a, b),
@@ -276,6 +281,8 @@ export async function recalculateAllSubjects(
       deckId: d.deck_id,
       rating: d.rating,
       reviewedAt: d.reviewed_at,
+      totalCards: d.total_cards,
+      correctCards: d.correct_cards,
     })),
     questionErrors: questionErrors.map((e) => ({
       subjectId: e.subject_id,

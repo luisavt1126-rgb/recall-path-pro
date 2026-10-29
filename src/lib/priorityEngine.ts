@@ -12,7 +12,7 @@
 
 import { ERROR_STATUS_WEIGHT, normalizeStatus } from "./errorStatus";
 
-export const ENGINE_VERSION = "1.2.0";
+export const ENGINE_VERSION = "1.3.0";
 
 export type KnowledgeState =
   | "NEW"
@@ -41,6 +41,9 @@ export type DeckSession = {
   /** Pode ser null quando a sessão não registrou os 4 níveis do Anki. */
   rating: RatingValue | null;
   reviewedAt: string;
+  /** Cartões revisados e acertados (sem "De novo"); null quando não informado. */
+  totalCards?: number | null;
+  correctCards?: number | null;
 };
 
 /** Erro anotado no caderno de erros (question_errors). */
@@ -119,6 +122,14 @@ export const ERROR_WEIGHT_RECURRENCE = 0.4;
 export const ERROR_RECURRENCE_ACC_THRESHOLD = 70;
 export const ERROR_RECURRENCE_BLOCKS = 3;
 export const ERROR_MANUAL_WINDOW_DAYS = 30;
+/**
+ * Acerto do Anki: uma sessão de baralho ligada ao assunto, dentro da janela
+ * recente, com acerto abaixo deste corte conta como sinal de erro recorrente
+ * (o mesmo papel de um bloco de questões abaixo de 70%). O corte é mais alto
+ * que o das questões porque a retenção saudável no Anki fica em 85–90%.
+ */
+export const ANKI_WEAK_ACC = 80;
+export const ANKI_RECENT_SESSIONS = 3;
 
 /** Componente de estabilidade/tendência. */
 export const STABILITY_WEIGHT_TREND = 0.7;
@@ -278,6 +289,43 @@ function hardRatingRatio(
   return hard / ratings.length;
 }
 
+type AnkiInfo = {
+  /** Proporção das últimas sessões com acurácia abaixo de ANKI_WEAK_ACC. */
+  recurrence: number;
+  /** Acerto agregado das últimas sessões com dados (null se não houver). */
+  accuracy: number | null;
+  sessions: number;
+};
+
+/** Desempenho recente no Anki a partir das sessões com cartões corretos/total. */
+function ankiInfo(now: Date, deckSessions: DeckSession[]): AnkiInfo {
+  const windowStart = now.getTime() - RECENT_WINDOW_DAYS * DAY_MS;
+  const recent = deckSessions
+    .filter(
+      (d) =>
+        (d.totalCards ?? 0) > 0 &&
+        d.correctCards !== null &&
+        d.correctCards !== undefined &&
+        new Date(d.reviewedAt).getTime() >= windowStart,
+    )
+    .sort((a, b) => new Date(b.reviewedAt).getTime() - new Date(a.reviewedAt).getTime())
+    .slice(0, ANKI_RECENT_SESSIONS);
+  if (recent.length === 0) return { recurrence: 0, accuracy: null, sessions: 0 };
+  const total = recent.reduce((sum, d) => sum + (d.totalCards ?? 0), 0);
+  const correct = recent.reduce(
+    (sum, d) => sum + Math.min(d.totalCards ?? 0, Math.max(0, d.correctCards ?? 0)),
+    0,
+  );
+  const weak = recent.filter(
+    (d) => ((d.correctCards ?? 0) / (d.totalCards ?? 1)) * 100 < ANKI_WEAK_ACC,
+  ).length;
+  return {
+    recurrence: weak / recent.length,
+    accuracy: total > 0 ? Math.round((correct / total) * 100) : null,
+    sessions: recent.length,
+  };
+}
+
 type OverdueInfo = {
   score: number;
   daysOverdue: number;
@@ -339,6 +387,7 @@ function errorScore(
   recurrence: number,
   manualErrors: ManualError[],
   now: Date,
+  ankiRecurrence = 0,
 ): ErrorInfo {
   const nowMs = now.getTime();
 
@@ -362,7 +411,7 @@ function errorScore(
     COMPONENT_MAX.error * ERROR_WEIGHT_VOLUME * Math.min(1, volumeErrors / ERROR_VOLUME_CAP);
 
   const manualRecurrence = Math.min(1, weightedEntries / ERROR_RECURRENCE_BLOCKS);
-  const effectiveRecurrence = Math.max(recurrence, manualRecurrence);
+  const effectiveRecurrence = Math.max(recurrence, manualRecurrence, ankiRecurrence);
   const recur = COMPONENT_MAX.error * ERROR_WEIGHT_RECURRENCE * effectiveRecurrence;
 
   return {
@@ -398,6 +447,7 @@ type StateContext = {
   manualEntries: number;
   hardRatio: number;
   overdueScore: number;
+  ankiRecurrence: number;
 };
 
 function determineState(ctx: StateContext): KnowledgeState {
@@ -412,6 +462,7 @@ function determineState(ctx: StateContext): KnowledgeState {
     manualEntries,
     hardRatio,
     overdueScore,
+    ankiRecurrence,
   } = ctx;
 
   if (!started) return "NEW";
@@ -447,14 +498,16 @@ function determineState(ctx: StateContext): KnowledgeState {
     recentAccuracy !== null &&
     recentAccuracy >= STABLE_MIN_ACC &&
     drop < DETERIORATION_MIN_DROP &&
-    hardRatio < STABLE_MAX_HARD_RATIO
+    hardRatio < STABLE_MAX_HARD_RATIO &&
+    ankiRecurrence === 0
   ) {
     return "STABLE";
   }
 
   const lowConfidence = recentQuestions > 0 && recentQuestions < FRAGILE_MIN_SAMPLE;
   const recentWeak = recentAccuracy !== null && recentAccuracy < FRAGILE_MAX_ACC;
-  const recurringErrors = recurrence > 0 || recentErrors > 0 || manualEntries > 0;
+  const recurringErrors =
+    recurrence > 0 || recentErrors > 0 || manualEntries > 0 || ankiRecurrence > 0;
   const relevantOverdue = overdueScore >= FRAGILE_OVERDUE_MIN;
 
   if (lowConfidence || recentWeak || recurringErrors || relevantOverdue) {
@@ -474,6 +527,9 @@ type ReasonContext = {
   recurrence: number;
   manualEntries: number;
   daysOverdue: number;
+  ankiAccuracy: number | null;
+  ankiRecurrence: number;
+  ankiSessions: number;
 };
 
 function buildReason(state: KnowledgeState, ctx: ReasonContext): string {
@@ -489,6 +545,9 @@ function buildReason(state: KnowledgeState, ctx: ReasonContext): string {
     case "FRAGILE": {
       if (ctx.recentAccuracy !== null && ctx.recentAccuracy < FRAGILE_MAX_ACC) {
         return `Acurácia recente de ${ctx.recentAccuracy}% em ${ctx.recentQuestions} questões — reforço recomendado.`;
+      }
+      if (ctx.ankiRecurrence > 0 && ctx.ankiAccuracy !== null) {
+        return `Acerto de ${ctx.ankiAccuracy}% no Anki nas últimas ${ctx.ankiSessions} sessão(ões) — reforço recomendado.`;
       }
       if (ctx.recurrence > 0 || ctx.recentErrors > 0) {
         return `${ctx.recentErrors} erros recentes — padrão de recorrência detectado.`;
@@ -520,7 +579,14 @@ export function computePrioritySnapshot(input: PriorityEngineInput): PrioritySna
   const question = questionScore(sample.recentAccuracy, sample.recentQuestions, sample.sampleConfidence);
   const overdue = overdueInfo(input.now, input.nextReviewAt, input.lastContactAt);
   const recurrence = recurrenceRatio(input.questionBlocks);
-  const error = errorScore(sample.recentErrors, recurrence, input.manualErrors, input.now);
+  const anki = ankiInfo(input.now, input.deckSessions);
+  const error = errorScore(
+    sample.recentErrors,
+    recurrence,
+    input.manualErrors,
+    input.now,
+    anki.recurrence,
+  );
   const hard = hardRatingRatio(input.subjectReviews, input.deckSessions);
   const stability = stabilityScore(sample.historicalAccuracy, sample.recentAccuracy, hard);
 
@@ -550,6 +616,7 @@ export function computePrioritySnapshot(input: PriorityEngineInput): PrioritySna
     manualEntries: error.manualEntries,
     hardRatio: hard,
     overdueScore: overdue.score,
+    ankiRecurrence: anki.recurrence,
   });
 
   const drop =
@@ -567,6 +634,9 @@ export function computePrioritySnapshot(input: PriorityEngineInput): PrioritySna
     recurrence,
     manualEntries: error.manualEntries,
     daysOverdue: overdue.daysOverdue,
+    ankiAccuracy: anki.accuracy,
+    ankiRecurrence: anki.recurrence,
+    ankiSessions: anki.sessions,
   });
 
   return {

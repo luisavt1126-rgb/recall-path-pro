@@ -12,7 +12,7 @@ import {
   deckAccuracy,
   type AnkiDeck,
 } from "@/lib/data";
-import { type Rating } from "@/lib/srs";
+import { ratingFromAccuracy } from "@/lib/srs";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { formatDate, isSameDay, toDateInputValue } from "@/lib/format";
 
@@ -395,18 +395,11 @@ function downloadCsvModel() {
   URL.revokeObjectURL(url);
 }
 
-/** Converte a taxa de acerto (%) no rating Anki equivalente. */
-function ratingFromAccuracy(accuracyPct: number): Rating {
-  if (accuracyPct >= 90) return "facil";
-  if (accuracyPct >= 80) return "bom";
-  if (accuracyPct >= 60) return "dificil";
-  return "muito_dificil";
-}
 
 /**
- * Registro de sessão de Anki/Flashcards: informa apenas a quantidade planejada,
- * a quantidade feita e se a sessão foi concluída — sem contagem de erros nem
- * rating manual (dado inviável de extrair do Anki durante o estudo).
+ * Registro de sessão de Anki/Flashcards: quantos cartões foram revisados e
+ * quantos foram para "De novo" (números da tela Estatísticas › Hoje do Anki),
+ * além de se o baralho do dia foi concluído. O app calcula o acerto.
  */
 function DeckSessionForm({
   deck,
@@ -417,16 +410,16 @@ function DeckSessionForm({
   deck: AnkiDeck;
   pending: boolean;
   onLog: (payload: {
-    cards_planned: number;
-    cards_done: number;
+    cards_reviewed: number;
+    cards_again: number;
     completed: boolean;
     minutes?: number;
     date: string;
   }) => void;
   onRemove: () => void;
 }) {
-  const [planned, setPlanned] = useState("");
-  const [done, setDone] = useState("");
+  const [reviewed, setReviewed] = useState("");
+  const [again, setAgain] = useState("");
   const [completed, setCompleted] = useState<boolean | null>(null);
   const [minutes, setMinutes] = useState("");
   const [date, setDate] = useState("");
@@ -435,30 +428,43 @@ function DeckSessionForm({
     setDate(toDateInputValue(new Date()));
   }, []);
 
+  const reviewedNum = Number(reviewed);
+  const againNum = Number(again);
+  const previewAccuracy =
+    reviewed.trim() !== "" &&
+    again.trim() !== "" &&
+    reviewedNum > 0 &&
+    againNum >= 0 &&
+    againNum <= reviewedNum
+      ? Math.round(((reviewedNum - againNum) / reviewedNum) * 100)
+      : null;
+
   const submit = () => {
-    const plannedNum = Number(planned);
-    const doneNum = Number(done);
-    if (planned.trim() === "" || plannedNum <= 0) {
-      toast.error("Informe a quantidade planejada para o dia");
+    if (reviewed.trim() === "" || !Number.isFinite(reviewedNum) || reviewedNum <= 0) {
+      toast.error("Informe quantos cartões você revisou");
       return;
     }
-    if (done.trim() === "" || doneNum < 0) {
-      toast.error("Informe a quantidade de cards feitos");
+    if (again.trim() === "" || !Number.isFinite(againNum) || againNum < 0) {
+      toast.error("Informe quantos foram para \"De novo\" (0 se nenhum)");
+      return;
+    }
+    if (againNum > reviewedNum) {
+      toast.error("Os erros não podem passar do total revisado");
       return;
     }
     if (completed === null) {
-      toast.error("Informe se concluiu a sessão");
+      toast.error("Informe se terminou o baralho do dia");
       return;
     }
     onLog({
-      cards_planned: plannedNum,
-      cards_done: doneNum,
+      cards_reviewed: Math.round(reviewedNum),
+      cards_again: Math.round(againNum),
       completed,
       ...(Number(minutes) > 0 ? { minutes: Number(minutes) } : {}),
       date,
     });
-    setPlanned("");
-    setDone("");
+    setReviewed("");
+    setAgain("");
     setCompleted(null);
     setMinutes("");
     setDate(toDateInputValue(new Date()));
@@ -467,29 +473,34 @@ function DeckSessionForm({
   return (
     <div className="mt-3 space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Cards planejados">
+        <Field label="Revisei">
           <input
             className={inputClass}
             inputMode="numeric"
-            value={planned}
-            onChange={(e) => setPlanned(e.target.value)}
-            placeholder="20"
-            aria-label={`Cards planejados em ${deck.name}`}
+            value={reviewed}
+            onChange={(e) => setReviewed(e.target.value)}
+            placeholder="40"
+            aria-label={`Cartões revisados em ${deck.name}`}
           />
         </Field>
-        <Field label="Cards feitos">
+        <Field label='Errei ("De novo")'>
           <input
             className={inputClass}
             inputMode="numeric"
-            value={done}
-            onChange={(e) => setDone(e.target.value)}
-            placeholder="18"
-            aria-label={`Cards feitos em ${deck.name}`}
+            value={again}
+            onChange={(e) => setAgain(e.target.value)}
+            placeholder="5"
+            aria-label={`Cartões em De novo em ${deck.name}`}
           />
         </Field>
       </div>
+      <p className="text-xs text-muted-foreground">
+        {previewAccuracy !== null
+          ? `Acerto: ${previewAccuracy}%`
+          : "No Anki: Estatísticas › Hoje mostra quantos estudou e quantos foram para \"De novo\"."}
+      </p>
       <div>
-        <p className="text-xs font-medium text-muted-foreground">Concluiu a sessão planejada?</p>
+        <p className="text-xs font-medium text-muted-foreground">Terminou o baralho do dia?</p>
         <div className="mt-1 flex gap-2">
           <button
             type="button"

@@ -306,3 +306,60 @@ describe("caderno de erros — peso por status", () => {
     strictEqual(r.errorScore, 10.83);
   });
 });
+
+describe("acerto do Anki", () => {
+  const deck = (daysAgo: number, total: number, correct: number) => ({
+    rating: null,
+    reviewedAt: ago(daysAgo),
+    totalCards: total,
+    correctCards: correct,
+  });
+
+  it("acerto baixo no Anki deixa o assunto frágil e sobe o componente de erros", () => {
+    const weak = computePrioritySnapshot(
+      input({ lastContactAt: ago(1), deckSessions: [deck(1, 40, 26)] }),
+    );
+    const healthy = computePrioritySnapshot(
+      input({ lastContactAt: ago(1), deckSessions: [deck(1, 40, 36)] }),
+    );
+    strictEqual(weak.knowledgeState, "FRAGILE");
+    ok(weak.reason.includes("Anki"));
+    ok(weak.reason.includes("65%"));
+    ok(weak.errorScore > healthy.errorScore);
+    strictEqual(healthy.errorScore, 0);
+  });
+
+  it("acerto saudável (≥ 80%) não gera sinal de erro", () => {
+    const r = computePrioritySnapshot(
+      input({ lastContactAt: ago(1), deckSessions: [deck(1, 50, 44), deck(3, 30, 27)] }),
+    );
+    strictEqual(r.errorScore, 0);
+    strictEqual(r.knowledgeState, "CONSOLIDATING");
+  });
+
+  it("ignora sessões sem cartões informados e sessões fora da janela recente", () => {
+    const r = computePrioritySnapshot(
+      input({
+        lastContactAt: ago(1),
+        deckSessions: [
+          { rating: null, reviewedAt: ago(1), totalCards: null, correctCards: null },
+          deck(90, 40, 10),
+        ],
+      }),
+    );
+    strictEqual(r.errorScore, 0);
+  });
+
+  it("nunca produz score fora de 0–100 com acerto do Anki", () => {
+    const r = computePrioritySnapshot(
+      input({
+        lastContactAt: ago(1),
+        nextReviewAt: ago(60),
+        questionBlocks: [q(1, 40, 5)],
+        deckSessions: [deck(1, 100, 0), deck(2, 100, 0), deck(3, 100, 0)],
+      }),
+    );
+    ok(r.priorityScore >= 0 && r.priorityScore <= 100);
+    ok(Number.isFinite(r.priorityScore));
+  });
+});

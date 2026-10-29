@@ -106,3 +106,13 @@ export function nextDeckInterval(current: number, rating: Rating, ease = 2.5) {
   return clamp(Math.round(base * factor[rating]), 1, 180);
 }
 
+/**
+ * Converte a taxa de acerto (%) de uma sessão de baralho no rating
+ * equivalente do Anki. Cortes centralizados aqui (antes ficavam em baralhos).
+ */
+export function ratingFromAccuracy(accuracyPct: number): Rating {
+  if (accuracyPct >= 90) return "facil";
+  if (accuracyPct >= 80) return "bom";
+  if (accuracyPct >= 60) return "dificil";
+  return "muito_dificil";
+}

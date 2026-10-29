@@ -1,7 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { scheduleReview, nextDeckInterval, type Rating, type SrsState } from "@/lib/srs";
+import {
+  scheduleReview,
+  nextDeckInterval,
+  ratingFromAccuracy,
+  type Rating,
+  type SrsState,
+} from "@/lib/srs";
 import type { AnkiDeck, Subject } from "@/lib/data";
 import { refreshSubjectPriority } from "@/lib/priorityEngine.service";
 import { dateInputToIso } from "@/lib/format";
@@ -269,14 +275,12 @@ export async function nudgeMastery(subjectId: string, delta: number) {
 }
 
 /**
- * Registra uma sessão de baralho (Anki/Flashcards) informando apenas a
- * quantidade planejada, a quantidade feita e se a sessão foi concluída —
- * sem contagem de erros nem rating manual (esse dado é inviável de extrair
- * do Anki durante o estudo).
+ * Registra uma sessão de baralho (Anki/Flashcards) com os números da tela
+ * Estatísticas › Hoje do Anki: cartões revisados e quantos foram para
+ * "De novo". O acerto vira `correct_cards/total_cards` e define o rating.
  *
- * - Concluída (completed = true, ou feitos >= planejados): expande o intervalo
- *   do SRS e agenda a próxima revisão.
- * - Não concluída: reseta o intervalo para D+1, mantendo o baralho nas
+ * - Baralho do dia concluído: o intervalo cresce conforme o acerto (rating).
+ * - Não concluído: reseta o intervalo para D+1, mantendo o baralho nas
  *   pendências da Tela Hoje e do Calendário.
  */
 export function useRateDeck() {
@@ -284,31 +288,35 @@ export function useRateDeck() {
   return useMutation({
     mutationFn: async ({
       deck,
-      cards_planned,
-      cards_done,
+      cards_reviewed,
+      cards_again,
       completed,
       minutes,
       date,
     }: {
       deck: AnkiDeck;
-      cards_planned: number;
-      cards_done: number;
+      cards_reviewed: number;
+      cards_again: number;
       completed: boolean;
       minutes?: number;
       date?: string;
     }) => {
       const userId = await requireUserId();
       const now = date ? new Date(dateInputToIso(date)) : new Date();
-      const planned = Number(cards_planned) || 0;
-      const done = Number(cards_done) || 0;
-      const effectiveCompleted = completed || (planned > 0 && done >= planned);
-      const rating: Rating = effectiveCompleted ? "facil" : "muito_dificil";
-      const interval = nextDeckInterval(Number(deck.interval_days), rating);
+      const total = Math.max(0, Math.round(Number(cards_reviewed) || 0));
+      const wrong = Math.min(total, Math.max(0, Math.round(Number(cards_again) || 0)));
+      const correct = total - wrong;
+      const accuracy = total > 0 ? Math.round((correct / total) * 100) : null;
+      const rating: Rating = accuracy !== null ? ratingFromAccuracy(accuracy) : "bom";
+      const interval = completed ? nextDeckInterval(Number(deck.interval_days), rating) : 1;
+      const weak = rating === "muito_dificil" || rating === "dificil";
 
       const { error } = await supabase.from("deck_sessions").insert({
         user_id: userId,
         deck_id: deck.id,
-        cards_reviewed: done,
+        cards_reviewed: total,
+        total_cards: total,
+        correct_cards: correct,
         rating,
         reviewed_at: now.toISOString(),
       });
@@ -320,7 +328,7 @@ export function useRateDeck() {
           interval_days: interval,
           last_review_at: now.toISOString(),
           next_review_at: new Date(now.getTime() + interval * 86_400_000).toISOString(),
-          status: effectiveCompleted ? "revisao" : "reforco",
+          status: !completed || weak ? "reforco" : "revisao",
         })
         .eq("id", deck.id);
       if (updateError) throw updateError;

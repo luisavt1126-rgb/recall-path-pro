@@ -43,6 +43,8 @@ export type RawDeck = {
 export type RawDeckSession = {
   rating: string | null;
   reviewedAt: string;
+  totalCards?: number | null;
+  correctCards?: number | null;
 };
 
 export type RawQuestionError = {
@@ -145,6 +147,8 @@ export function buildPriorityEngineInput(params: {
   const deckSessions: DeckSession[] = params.deckSessions.map((d) => ({
     rating: asRatingValue(d.rating),
     reviewedAt: d.reviewedAt,
+    totalCards: d.totalCards ?? null,
+    correctCards: d.correctCards ?? null,
   }));
 
   return {
