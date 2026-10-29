@@ -14,7 +14,7 @@ import {
   useQuestionLogs,
   useSubjects,
 } from "@/lib/data";
-import { questionPriority } from "@/lib/priority";
+import { useSubjectPriorities } from "@/lib/subjectPriority";
 import { Panel, PriorityTag, Field, inputClass, buttonClass, Empty } from "@/components/bits";
 import { PrepIcons, PREP_ITEMS, type PrepKey } from "@/components/SubjectPrep";
 import { QuestionErrorSection, type QuestionErrorSpec } from "@/components/QuestionErrorSection";
@@ -75,6 +75,7 @@ function SubjectsPage() {
   const { data: subjects = [] } = useSubjects();
   const { data: logs = [] } = useQuestionLogs();
   const stats = questionStatsBySubject(logs);
+  const priorityOf = useSubjectPriorities();
 
   const [subjectName, setSubjectName] = useState("");
   const [areaName, setAreaName] = useState("");
@@ -243,16 +244,7 @@ function SubjectsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const levelOf = (subjectId: string) => {
-    const subject = subjects.find((s) => s.id === subjectId)!;
-    const s = stats.get(subjectId) ?? EMPTY_STATS;
-    return questionPriority({
-      accuracy: s.accuracy,
-      total: s.total,
-      recentErrors: s.recentErrors,
-      exam_incidence: subject.exam_incidence,
-    }).level;
-  };
+  const levelOf = (subjectId: string) => priorityOf(subjectId).level;
 
   return (
     <>

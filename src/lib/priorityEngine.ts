@@ -1,12 +1,14 @@
 // Motor de prioridade por assunto — base pura, determinística e versionada.
 //
-// Este módulo NÃO depende de React/Supabase e NÃO é conectado ao frontend.
-// Ele recebe evidências já carregadas e devolve um resultado pronto para ser
-// persistido em `subject_priority_snapshots` (via `priorityEngine.upsert.ts`).
+// Este módulo NÃO depende de React/Supabase. Ele recebe evidências já
+// carregadas e devolve um resultado pronto para ser persistido em
+// `subject_priority_snapshots` (via `priorityEngine.upsert.ts`). As telas leem
+// os snapshots por `src/lib/subjectPriority.ts`.
 //
-// Não substitui `questionPriority`/`deckPriority` (em src/lib/priority.ts),
-// que continuam ativos. `mastery`, `exam_incidence` e os campos SRS ficam de
-// fora do score por decisão de projeto (ver .lovable/plan).
+// A prioridade por assunto vem só daqui; `deckPriority` (src/lib/priority.ts)
+// continua sendo a prioridade própria de cada baralho. `questionPriority` ficou
+// sem consumidores e pode ser removido após validação. `mastery`,
+// `exam_incidence` e os campos SRS ficam de fora do score (ver .lovable/plan).
 
 import { ERROR_STATUS_WEIGHT, normalizeStatus } from "./errorStatus";
 

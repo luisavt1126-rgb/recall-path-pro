@@ -28,7 +28,7 @@ import {
   type SubjectPrioritySnapshot,
 } from "@/lib/data";
 import { CORE_AREAS } from "@/lib/areas";
-import { questionPriority } from "@/lib/priority";
+import { useSubjectPriorities } from "@/lib/subjectPriority";
 import { Panel, Stat, Empty } from "@/components/bits";
 import { PriorityRankings } from "@/components/PriorityRankings";
 import { FlashcardStreak } from "@/components/FlashcardStreak";
@@ -73,6 +73,7 @@ function Dashboard() {
   const { data: completions = [] } = useTaskCompletions();
   const { data: snapshots = [] } = useSubjectPrioritySnapshots();
   const { data: disciplines = [] } = useDisciplines();
+  const priorityOf = useSubjectPriorities();
 
   const today = new Date();
   const weekStart = startOfWeek(today);
@@ -95,12 +96,7 @@ function Dashboard() {
   const ranked = subjects
     .map((subject) => {
       const s = stats.get(subject.id) ?? EMPTY_STATS;
-      const { score, level } = questionPriority({
-        accuracy: s.accuracy,
-        total: s.total,
-        recentErrors: s.recentErrors,
-        exam_incidence: subject.exam_incidence,
-      });
+      const { score, level } = priorityOf(subject.id);
       return { subject, score, level, stats: s };
     })
     .sort((a, b) => b.score - a.score);

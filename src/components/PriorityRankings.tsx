@@ -10,7 +10,8 @@ import {
   useQuestionLogs,
   useSubjects,
 } from "@/lib/data";
-import { deckPriority, questionPriority, type Reason } from "@/lib/priority";
+import { deckPriority, type Reason } from "@/lib/priority";
+import { useSubjectPriorities } from "@/lib/subjectPriority";
 import { Panel, PriorityTag, Empty } from "@/components/bits";
 import { formatDate } from "@/lib/format";
 
@@ -59,29 +60,23 @@ export function useDeckRanking(limit = 6) {
 }
 
 
+/** Assuntos ordenados pelo motor de prioridade (snapshots), com estado e motivo. */
 export function useQuestionRanking(limit = 6) {
   const { data: subjects = [] } = useSubjects();
   const { data: disciplines = [] } = useDisciplines();
   const { data: logs = [] } = useQuestionLogs();
+  const priorityOf = useSubjectPriorities();
   const stats = questionStatsBySubject(logs);
 
   return subjects
-    .map((subject) => {
-      const s = stats.get(subject.id) ?? EMPTY_STATS;
-      return {
-        subject,
-        disciplineName:
-          disciplines.find((d) => d.id === subject.discipline_id)?.name ?? "Sem disciplina",
-        stats: s,
-        ...questionPriority({
-          accuracy: s.accuracy,
-          total: s.total,
-          recentErrors: s.recentErrors,
-          exam_incidence: subject.exam_incidence,
-        }),
-      };
-    })
-    .filter((r) => r.stats.total > 0)
+    .map((subject) => ({
+      subject,
+      disciplineName:
+        disciplines.find((d) => d.id === subject.discipline_id)?.name ?? "Sem disciplina",
+      stats: stats.get(subject.id) ?? EMPTY_STATS,
+      ...priorityOf(subject.id),
+    }))
+    .filter((r) => r.calculated && r.state !== "NEW" && r.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }
@@ -125,7 +120,7 @@ export function QuestionRankingList({ limit = 6 }: { limit?: number }) {
   if (ranking.length === 0) {
     return (
       <Empty>
-        Registre blocos de questões em{" "}
+        Registre estudos, questões ou revisões em{" "}
         <Link to="/questoes" className="text-brand">
           Questões
         </Link>{" "}
@@ -135,7 +130,7 @@ export function QuestionRankingList({ limit = 6 }: { limit?: number }) {
   }
   return (
     <div className="space-y-2.5 text-sm">
-      {ranking.map(({ subject, disciplineName, stats, level, errorPct, reasons }) => (
+      {ranking.map(({ subject, disciplineName, stats, level, score, reason, reasons }) => (
         <Link
           key={subject.id}
           to="/assuntos/$id"
@@ -149,14 +144,16 @@ export function QuestionRankingList({ limit = 6 }: { limit?: number }) {
             <PriorityTag level={level} />
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            {errorPct ?? 0}% de erro · {stats.total} questões · acertos {stats.accuracy ?? 0}%
+            prioridade {score}/100 · {stats.total} questões
+            {stats.accuracy !== null && ` · acertos ${stats.accuracy}%`}
           </p>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary">
             <div
               className="h-full rounded-full bg-rose"
-              style={{ width: `${Math.min(100, errorPct ?? 0)}%` }}
+              style={{ width: `${Math.min(100, score)}%` }}
             />
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">{reason}</p>
           <Reasons reasons={reasons} />
         </Link>
       ))}
@@ -182,10 +179,10 @@ export function PriorityRankings({ limit = 5 }: { limit?: number }) {
       </Panel>
 
       <Panel
-        title="📝 Assuntos por desempenho em questões"
+        title="📝 Assuntos prioritários"
         action={
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            % de erro · erros recentes · incidência
+            questões · atraso · erros · tendência
           </span>
         }
         className="hidden lg:block"
@@ -210,7 +207,7 @@ export function PriorityRankings({ limit = 5 }: { limit?: number }) {
             }`}
             onClick={() => setTab("questions")}
           >
-            📝 Questões
+            📝 Assuntos
           </button>
         </div>
         {tab === "decks" ? (

@@ -1,12 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  EMPTY_STATS,
-  questionStatsBySubject,
-  useDisciplines,
-  useQuestionLogs,
-  useSubjects,
-} from "@/lib/data";
-import { questionPriority } from "@/lib/priority";
+import { useDisciplines, useSubjects } from "@/lib/data";
+import { useSubjectPriorities } from "@/lib/subjectPriority";
 import { RATING_LABEL, TARGET_RETENTION, type Rating } from "@/lib/srs";
 import { useRateSubject } from "@/lib/actions";
 import { Panel, PriorityTag, Stat, Empty, buttonClass, ghostButtonClass } from "@/components/bits";
@@ -33,21 +27,14 @@ const RATINGS: Rating[] = ["muito_dificil", "dificil", "bom", "facil"];
 function ReviewsPage() {
   const { data: subjects = [] } = useSubjects();
   const { data: disciplines = [] } = useDisciplines();
-  const { data: logs = [] } = useQuestionLogs();
+  const priorityOf = useSubjectPriorities();
   const rate = useRateSubject();
-  const stats = questionStatsBySubject(logs);
   const today = new Date();
 
   const items = subjects
     .map((subject) => {
-      const s = stats.get(subject.id) ?? EMPTY_STATS;
-      const { score, level } = questionPriority({
-        accuracy: s.accuracy,
-        total: s.total,
-        recentErrors: s.recentErrors,
-        exam_incidence: subject.exam_incidence,
-      });
-      return { subject, score, level };
+      const { score, level, reason } = priorityOf(subject.id);
+      return { subject, score, level, reason };
     })
     .sort((a, b) => b.score - a.score);
 
@@ -87,7 +74,7 @@ function ReviewsPage() {
           <Empty>Tudo em dia. Nenhuma revisão pendente 🎉</Empty>
         ) : (
           <div className="space-y-3">
-            {queue.map(({ subject, level }) => (
+            {queue.map(({ subject, level, reason }) => (
               <div key={subject.id} className="rounded-xl border border-border p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -102,6 +89,7 @@ function ReviewsPage() {
                       {disciplineName(subject.discipline_id)} · domínio {subject.mastery}% ·
                       prevista {formatDate(subject.next_review_at)}
                     </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{reason}</p>
                   </div>
                   <PriorityTag level={level} />
                 </div>
