@@ -1,10 +1,32 @@
-// Persistência isolada do motor de prioridade.
-//
-// Única parte do motor que toca no Supabase. Não é conectada ao frontend:
-// chame `computePrioritySnapshot` antes e passe o resultado para cá.
+// Persistência do motor de prioridade: chame `computePrioritySnapshot` antes
+// e passe o resultado para cá.
 
 import { supabase } from "@/integrations/supabase/client";
 import type { PrioritySnapshotResult } from "./priorityEngine";
+
+/** Converte o resultado do motor em uma linha de `subject_priority_snapshots`. */
+function toRow(userId: string, subjectId: string, result: PrioritySnapshotResult, calculatedAt: string) {
+  return {
+    user_id: userId,
+    subject_id: subjectId,
+    priority_score: result.priorityScore,
+    knowledge_state: result.knowledgeState,
+    reason: result.reason,
+    question_score: result.questionScore,
+    overdue_score: result.overdueScore,
+    error_score: result.errorScore,
+    stability_score: result.stabilityScore,
+    recent_questions: result.recentQuestions,
+    recent_accuracy: result.recentAccuracy,
+    historical_questions: result.historicalQuestions,
+    historical_accuracy: result.historicalAccuracy,
+    sample_confidence: result.sampleConfidence,
+    sample_is_estimated: result.sampleIsEstimated,
+    engine_version: result.engineVersion,
+    // O default now() só vale no INSERT; no upsert precisa ser enviado.
+    calculated_at: calculatedAt,
+  };
+}
 
 /**
  * Grava/atualiza o snapshot de prioridade de um assunto em
@@ -19,27 +41,30 @@ export async function upsertSubjectPrioritySnapshot(
   subjectId: string,
   result: PrioritySnapshotResult,
 ): Promise<void> {
-  const { error } = await supabase.from("subject_priority_snapshots").upsert(
-    {
-      user_id: userId,
-      subject_id: subjectId,
-      priority_score: result.priorityScore,
-      knowledge_state: result.knowledgeState,
-      reason: result.reason,
-      question_score: result.questionScore,
-      overdue_score: result.overdueScore,
-      error_score: result.errorScore,
-      stability_score: result.stabilityScore,
-      recent_questions: result.recentQuestions,
-      recent_accuracy: result.recentAccuracy,
-      historical_questions: result.historicalQuestions,
-      historical_accuracy: result.historicalAccuracy,
-      sample_confidence: result.sampleConfidence,
-      sample_is_estimated: result.sampleIsEstimated,
-      engine_version: result.engineVersion,
-    },
-    { onConflict: "user_id,subject_id" },
-  );
+  const { error } = await supabase
+    .from("subject_priority_snapshots")
+    .upsert(toRow(userId, subjectId, result, new Date().toISOString()), {
+      onConflict: "user_id,subject_id",
+    });
 
   if (error) throw error;
+}
+
+const UPSERT_CHUNK = 200;
+
+/** Grava vários snapshots de uma vez (recálculo em lote), em blocos. */
+export async function upsertSubjectPrioritySnapshots(
+  userId: string,
+  items: Array<{ subjectId: string; result: PrioritySnapshotResult }>,
+): Promise<void> {
+  const calculatedAt = new Date().toISOString();
+  for (let i = 0; i < items.length; i += UPSERT_CHUNK) {
+    const rows = items
+      .slice(i, i + UPSERT_CHUNK)
+      .map((it) => toRow(userId, it.subjectId, it.result, calculatedAt));
+    const { error } = await supabase
+      .from("subject_priority_snapshots")
+      .upsert(rows, { onConflict: "user_id,subject_id" });
+    if (error) throw error;
+  }
 }
