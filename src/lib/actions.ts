@@ -9,13 +9,22 @@ import {
   type SrsState,
 } from "@/lib/srs";
 import type { AnkiDeck, Subject } from "@/lib/data";
-import { refreshSubjectPriority } from "@/lib/priorityEngine.service";
+import { recalculateAllSubjects, refreshSubjectPriority } from "@/lib/priorityEngine.service";
 import { dateInputToIso } from "@/lib/format";
 
 export async function requireUserId() {
   const { data } = await supabase.auth.getUser();
   if (!data.user) throw new Error("Sessão expirada");
   return data.user.id;
+}
+
+/** Recalcula todos os assuntos sem nunca derrubar a gravação do usuário. */
+export async function refreshAllSubjectPriorities(userId: string) {
+  try {
+    await recalculateAllSubjects(userId);
+  } catch (err) {
+    console.warn("Falha ao recalcular prioridades", err);
+  }
 }
 
 export function useRateSubject() {
@@ -347,6 +356,9 @@ export function useRateDeck() {
       if (deck.subject_id) {
         await startSubjectCycle(deck.subject_id, now.toISOString());
         await refreshSubjectPriority(userId, deck.subject_id);
+      } else if (deck.discipline_id) {
+        // Baralho da especialidade: o acerto vale para todas as aulas dela.
+        await refreshAllSubjectPriorities(userId);
       }
 
       return { interval, rating };

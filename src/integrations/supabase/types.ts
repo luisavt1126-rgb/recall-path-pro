@@ -19,6 +19,7 @@ export type Database = {
           anki_name: string | null
           cards_due: number | null
           created_at: string
+          discipline_id: string | null
           id: string
           interval_days: number
           last_review_at: string | null
@@ -34,6 +35,7 @@ export type Database = {
           anki_name?: string | null
           cards_due?: number | null
           created_at?: string
+          discipline_id?: string | null
           id?: string
           interval_days?: number
           last_review_at?: string | null
@@ -49,6 +51,7 @@ export type Database = {
           anki_name?: string | null
           cards_due?: number | null
           created_at?: string
+          discipline_id?: string | null
           id?: string
           interval_days?: number
           last_review_at?: string | null
@@ -61,6 +64,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "anki_decks_discipline_id_fkey"
+            columns: ["discipline_id"]
+            isOneToOne: false
+            referencedRelation: "disciplines"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "anki_decks_subject_id_fkey"
             columns: ["subject_id"]

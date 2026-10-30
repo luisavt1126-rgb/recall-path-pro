@@ -85,6 +85,24 @@ export async function recalculateSubjectPriority(
     .eq("subject_id", subjectId);
   if (questionErrorsError) throw questionErrorsError;
 
+  // Baralhos ligados à especialidade inteira (sem aula específica).
+  const { data: specialtyDecks, error: specialtyDecksError } = await supabase
+    .from("anki_decks")
+    .select("id")
+    .eq("discipline_id", subject.discipline_id)
+    .is("subject_id", null);
+  if (specialtyDecksError) throw specialtyDecksError;
+  const specialtyDeckIds = (specialtyDecks ?? []).map((d) => d.id);
+  let specialtySessionRows: DeckSessionRow[] = [];
+  if (specialtyDeckIds.length > 0) {
+    const { data, error } = await supabase
+      .from("deck_sessions")
+      .select("*")
+      .in("deck_id", specialtyDeckIds);
+    if (error) throw error;
+    specialtySessionRows = data ?? [];
+  }
+
   const rawSubject: RawSubjectContact = {
     nextReviewAt: subject.next_review_at,
     lastStudiedAt: subject.last_studied_at,
@@ -107,6 +125,14 @@ export async function recalculateSubjectPriority(
     ),
     decks: (decks ?? []).map((d): RawDeck => ({ nextReviewAt: d.next_review_at })),
     deckSessions: deckSessionRows.map(
+      (ds): RawDeckSession => ({
+        rating: ds.rating,
+        reviewedAt: ds.reviewed_at,
+        totalCards: ds.total_cards,
+        correctCards: ds.correct_cards,
+      }),
+    ),
+    specialtyDeckSessions: specialtySessionRows.map(
       (ds): RawDeckSession => ({
         rating: ds.rating,
         reviewedAt: ds.reviewed_at,
@@ -190,7 +216,7 @@ export async function recalculateAllSubjects(
         supabase
           .from("subjects")
           .select(
-            "id, next_review_at, last_studied_at, first_studied_at, video_watched_at, summary_ready_at, deck_ready_at",
+            "id, discipline_id, next_review_at, last_studied_at, first_studied_at, video_watched_at, summary_ready_at, deck_ready_at",
           )
           .eq("user_id", userId)
           .order("id")
@@ -223,7 +249,7 @@ export async function recalculateAllSubjects(
       fetchAllPages((a, b) =>
         supabase
           .from("anki_decks")
-          .select("id, subject_id, next_review_at")
+          .select("id, subject_id, discipline_id, next_review_at")
           .eq("user_id", userId)
           .order("id")
           .range(a, b),
@@ -250,6 +276,7 @@ export async function recalculateAllSubjects(
     now,
     subjects: subjects.map((s) => ({
       id: s.id,
+      disciplineId: s.discipline_id,
       nextReviewAt: s.next_review_at,
       lastStudiedAt: s.last_studied_at,
       firstStudiedAt: s.first_studied_at,
@@ -275,6 +302,7 @@ export async function recalculateAllSubjects(
     decks: decks.map((d) => ({
       id: d.id,
       subjectId: d.subject_id,
+      disciplineId: d.discipline_id,
       nextReviewAt: d.next_review_at,
     })),
     deckSessions: deckSessions.map((d) => ({

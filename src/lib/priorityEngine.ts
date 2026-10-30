@@ -12,7 +12,7 @@
 
 import { ERROR_STATUS_WEIGHT, normalizeStatus } from "./errorStatus";
 
-export const ENGINE_VERSION = "1.3.0";
+export const ENGINE_VERSION = "1.4.0";
 
 export type KnowledgeState =
   | "NEW"
@@ -60,6 +60,12 @@ export type PriorityEngineInput = {
   questionBlocks: QuestionBlock[];
   subjectReviews: SubjectReview[];
   deckSessions: DeckSession[];
+  /**
+   * Sessões de baralhos ligados à especialidade inteira (não a uma aula).
+   * Só alimentam o sinal de acerto do Anki, e só para assuntos já iniciados:
+   * nunca contam como contato nem tiram um assunto do estado NEW.
+   */
+  specialtyDeckSessions?: DeckSession[];
   manualErrors: ManualError[];
   /**
    * Vencimento efetivo: o maior risco entre o vencimento do próprio assunto e
@@ -579,7 +585,20 @@ export function computePrioritySnapshot(input: PriorityEngineInput): PrioritySna
   const question = questionScore(sample.recentAccuracy, sample.recentQuestions, sample.sampleConfidence);
   const overdue = overdueInfo(input.now, input.nextReviewAt, input.lastContactAt);
   const recurrence = recurrenceRatio(input.questionBlocks);
-  const anki = ankiInfo(input.now, input.deckSessions);
+  const startedBySubject =
+    input.lastContactAt !== null ||
+    input.nextReviewAt !== null ||
+    sample.recentQuestions > 0 ||
+    sample.historicalQuestions > 0 ||
+    input.subjectReviews.length > 0 ||
+    input.deckSessions.length > 0 ||
+    input.manualErrors.length > 0;
+  const anki = ankiInfo(
+    input.now,
+    startedBySubject
+      ? [...input.deckSessions, ...(input.specialtyDeckSessions ?? [])]
+      : input.deckSessions,
+  );
   const error = errorScore(
     sample.recentErrors,
     recurrence,
@@ -596,14 +615,7 @@ export function computePrioritySnapshot(input: PriorityEngineInput): PrioritySna
     100,
   );
 
-  const started =
-    input.lastContactAt !== null ||
-    input.nextReviewAt !== null ||
-    sample.recentQuestions > 0 ||
-    sample.historicalQuestions > 0 ||
-    input.subjectReviews.length > 0 ||
-    input.deckSessions.length > 0 ||
-    input.manualErrors.length > 0;
+  const started = startedBySubject;
 
   const knowledgeState = determineState({
     started,

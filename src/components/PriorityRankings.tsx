@@ -41,11 +41,15 @@ function Reasons({ reasons }: { reasons: Reason[] }) {
 export function useDeckRanking(limit = 6) {
   const { data: decks = [] } = useDecks();
   const { data: subjects = [] } = useSubjects();
+  const { data: disciplines = [] } = useDisciplines();
   const { data: deckSessions = [] } = useDeckSessions();
   return decks
     .map((deck) => ({
       deck,
-      subjectName: subjects.find((s) => s.id === deck.subject_id)?.name ?? null,
+      subjectName:
+        subjects.find((s) => s.id === deck.subject_id)?.name ??
+        disciplines.find((d) => d.id === deck.discipline_id)?.name ??
+        null,
       accuracy: deckAccuracy(deckSessions, deck.id),
       ...deckPriority({
         next_review_at: deck.next_review_at,

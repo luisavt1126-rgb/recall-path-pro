@@ -3,15 +3,19 @@ import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { requireUserId, useRateDeck } from "@/lib/actions";
+import { refreshAllSubjectPriorities, requireUserId, useRateDeck } from "@/lib/actions";
 import { refreshSubjectPriority } from "@/lib/priorityEngine.service";
 import {
   useDecks,
   useDeckSessions,
+  useDisciplines,
   useSubjects,
   deckAccuracy,
   type AnkiDeck,
+  type Discipline,
+  type Subject,
 } from "@/lib/data";
+import { CORE_AREAS } from "@/lib/areas";
 import { ratingFromAccuracy } from "@/lib/srs";
 import { Panel, Stat, Empty, Field, inputClass, buttonClass, ghostButtonClass } from "@/components/bits";
 import { formatDate, isSameDay, toDateInputValue } from "@/lib/format";
@@ -35,6 +39,73 @@ export const Route = createFileRoute("/_authenticated/baralhos")({
   component: DecksPage,
 });
 
+/**
+ * Vínculo de um baralho: com a especialidade inteira ("d:<id>") ou com uma
+ * aula/assunto específico ("s:<id>"). Recomendado: um baralho por
+ * especialidade, com a aula como etiqueta dentro do Anki.
+ */
+function deckLinkValue(deck: Pick<AnkiDeck, "subject_id" | "discipline_id">): string {
+  if (deck.subject_id) return `s:${deck.subject_id}`;
+  if (deck.discipline_id) return `d:${deck.discipline_id}`;
+  return "";
+}
+
+function parseDeckLink(value: string): { subject_id: string | null; discipline_id: string | null } {
+  if (value.startsWith("s:")) return { subject_id: value.slice(2), discipline_id: null };
+  if (value.startsWith("d:")) return { subject_id: null, discipline_id: value.slice(2) };
+  return { subject_id: null, discipline_id: null };
+}
+
+function deckLinkLabel(
+  deck: Pick<AnkiDeck, "subject_id" | "discipline_id">,
+  subjects: Subject[],
+  disciplines: Discipline[],
+): string {
+  if (deck.subject_id) return subjects.find((s) => s.id === deck.subject_id)?.name ?? "Aula removida";
+  if (deck.discipline_id) {
+    const name = disciplines.find((d) => d.id === deck.discipline_id)?.name;
+    return name ? `${name} (especialidade)` : "Especialidade removida";
+  }
+  return "Sem vínculo";
+}
+
+function DeckLinkOptions({
+  subjects,
+  disciplines,
+}: {
+  subjects: Subject[];
+  disciplines: Discipline[];
+}) {
+  const byName = new Map(disciplines.map((d) => [d.name, d]));
+  return (
+    <>
+      <option value="">Nenhum</option>
+      {CORE_AREAS.map((area) => {
+        const specs = area.specialties
+          .map((n) => byName.get(n))
+          .filter((d): d is Discipline => Boolean(d));
+        if (specs.length === 0) return null;
+        return (
+          <optgroup key={`d-${area.area}`} label={`Especialidade inteira — ${area.area}`}>
+            {specs.map((d) => (
+              <option key={d.id} value={`d:${d.id}`}>
+                {d.name}
+              </option>
+            ))}
+          </optgroup>
+        );
+      })}
+      <optgroup label="Aula específica">
+        {subjects.map((s) => (
+          <option key={s.id} value={`s:${s.id}`}>
+            {s.name}
+          </option>
+        ))}
+      </optgroup>
+    </>
+  );
+}
+
 const STATUS = [
   { value: "novo", label: "Novo" },
   { value: "revisao", label: "Revisão" },
@@ -45,10 +116,11 @@ function DecksPage() {
   const qc = useQueryClient();
   const { data: decks = [] } = useDecks();
   const { data: subjects = [] } = useSubjects();
+  const { data: disciplines = [] } = useDisciplines();
   const { data: deckSessions = [] } = useDeckSessions();
 
   const [name, setName] = useState("");
-  const [subjectId, setSubjectId] = useState("");
+  const [link, setLink] = useState("");
   const [status, setStatus] = useState("novo");
   const [syncing, setSyncing] = useState(false);
 
@@ -58,7 +130,7 @@ function DecksPage() {
       const { error } = await supabase.from("anki_decks").insert({
         user_id: userId,
         name: name.trim(),
-        subject_id: subjectId || null,
+        ...parseDeckLink(link),
         status,
         next_review_at: new Date().toISOString(),
       });
@@ -73,6 +145,24 @@ function DecksPage() {
   });
 
   const rateDeck = useRateDeck();
+
+  const relinkDeck = useMutation({
+    mutationFn: async ({ deck, value }: { deck: AnkiDeck; value: string }) => {
+      const userId = await requireUserId();
+      const { error } = await supabase
+        .from("anki_decks")
+        .update(parseDeckLink(value))
+        .eq("id", deck.id);
+      if (error) throw error;
+      // O acerto do baralho muda de dono: recalcula tudo uma vez.
+      await refreshAllSubjectPriorities(userId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries();
+      toast.success("Vínculo do baralho atualizado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const removeDeck = useMutation({
     mutationFn: async (id: string) => {
@@ -101,9 +191,11 @@ function DecksPage() {
     let updated = 0;
     let sessions = 0;
     const touched = new Set<string>();
+    let touchedSpecialty = false;
     for (const row of rows) {
       const existing = decks.find((deck) => normalize(deck.anki_name ?? deck.name) === normalize(row.name));
       if (existing?.subject_id) touched.add(existing.subject_id);
+      else if (existing?.discipline_id) touchedSpecialty = true;
       const patch = {
         anki_name: row.name,
         cards_due: row.due,
@@ -142,8 +234,12 @@ function DecksPage() {
         }
       }
     }
-    for (const subjectId of touched) {
-      await refreshSubjectPriority(userId, subjectId);
+    if (touchedSpecialty) {
+      await refreshAllSubjectPriorities(userId);
+    } else {
+      for (const subjectId of touched) {
+        await refreshSubjectPriority(userId, subjectId);
+      }
     }
     qc.invalidateQueries();
     toast.success(`${created} criado(s), ${updated} atualizado(s) e ${sessions} sessão(ões) importada(s)`);
@@ -197,7 +293,9 @@ function DecksPage() {
       <Panel title="Novo baralho">
         <p className="mb-3 text-xs text-muted-foreground">
           Apenas o nome e o andamento do baralho são guardados aqui — o conteúdo dos cartões
-          continua no Anki.
+          continua no Anki. Sugestão: um baralho por especialidade (ex.: Cardiologia), com a
+          aula como etiqueta dentro do Anki. O acerto dele passa a pesar em todas as aulas já
+          iniciadas daquela especialidade.
         </p>
         <form
           onSubmit={(e) => {
@@ -214,18 +312,13 @@ function DecksPage() {
               placeholder="Ex.: Cardio · Arritmias"
             />
           </Field>
-          <Field label="Assunto vinculado">
+          <Field label="Vincular a">
             <select
               className={inputClass}
-              value={subjectId}
-              onChange={(e) => setSubjectId(e.target.value)}
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
             >
-              <option value="">Nenhum</option>
-              {subjects.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
+              <DeckLinkOptions subjects={subjects} disciplines={disciplines} />
             </select>
           </Field>
           <Field label="Status">
@@ -279,7 +372,7 @@ function DecksPage() {
                   <div className="min-w-0">
                     <p className="truncate font-medium">{deck.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {subjects.find((s) => s.id === deck.subject_id)?.name ?? "Sem assunto"} ·
+                      {deckLinkLabel(deck, subjects, disciplines)} ·
                       próxima {formatDate(deck.next_review_at)} · intervalo{" "}
                       {Math.round(Number(deck.interval_days))}d
                     </p>
@@ -311,6 +404,18 @@ function DecksPage() {
                     )}
                   </div>
                 </div>
+                <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="shrink-0">Vínculo:</span>
+                  <select
+                    className={`${inputClass} py-1 text-xs`}
+                    value={deckLinkValue(deck)}
+                    disabled={relinkDeck.isPending}
+                    onChange={(e) => relinkDeck.mutate({ deck, value: e.target.value })}
+                    aria-label={`Vínculo do baralho ${deck.name}`}
+                  >
+                    <DeckLinkOptions subjects={subjects} disciplines={disciplines} />
+                  </select>
+                </label>
                 <DeckSessionForm
                   deck={deck}
                   pending={rateDeck.isPending}

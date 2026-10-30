@@ -42,17 +42,25 @@ export function recommendDecks(
   limit = 5,
 ): DeckRecommendation[] {
   const bySubject = new Map<string, AnkiDeck[]>();
+  const byDiscipline = new Map<string, AnkiDeck[]>();
   for (const deck of decks) {
-    if (!deck.subject_id) continue;
-    const list = bySubject.get(deck.subject_id) ?? [];
-    list.push(deck);
-    bySubject.set(deck.subject_id, list);
+    if (deck.subject_id) {
+      const list = bySubject.get(deck.subject_id) ?? [];
+      list.push(deck);
+      bySubject.set(deck.subject_id, list);
+    } else if (deck.discipline_id) {
+      // Baralho da especialidade inteira cobre todas as aulas dela.
+      const list = byDiscipline.get(deck.discipline_id) ?? [];
+      list.push(deck);
+      byDiscipline.set(deck.discipline_id, list);
+    }
   }
 
   const out: DeckRecommendation[] = [];
 
   for (const { subject, score, stats } of ranked) {
-    const subjectDecks = bySubject.get(subject.id) ?? [];
+    const subjectDecks =
+      bySubject.get(subject.id) ?? byDiscipline.get(subject.discipline_id) ?? [];
     const weakAccuracy = stats.accuracy !== null && stats.total >= 5 && stats.accuracy < 70;
     const manyErrors = stats.recentErrors >= 3;
 
@@ -106,5 +114,15 @@ export function recommendDecks(
     }
   }
 
-  return out.sort((a, b) => b.weight - a.weight).slice(0, limit);
+  // Um baralho de especialidade pode aparecer por várias aulas: fica a de maior peso.
+  const seen = new Set<string>();
+  return out
+    .sort((a, b) => b.weight - a.weight)
+    .filter((rec) => {
+      const key = rec.deck ? `deck-${rec.deck.id}` : rec.key;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit);
 }

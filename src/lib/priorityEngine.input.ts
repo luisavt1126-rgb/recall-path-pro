@@ -130,6 +130,8 @@ export function buildPriorityEngineInput(params: {
   decks: RawDeck[];
   deckSessions: RawDeckSession[];
   questionErrors: RawQuestionError[];
+  /** Sessões de baralhos ligados à especialidade do assunto (não à aula). */
+  specialtyDeckSessions?: RawDeckSession[];
   now: Date;
 }): PriorityEngineInput {
   const questionBlocks: QuestionBlock[] = params.questionLogs.map((q) => ({
@@ -144,18 +146,23 @@ export function buildPriorityEngineInput(params: {
     if (rating !== null) subjectReviews.push({ rating, reviewedAt: r.reviewedAt });
   }
 
-  const deckSessions: DeckSession[] = params.deckSessions.map((d) => ({
+  const toDeckSession = (d: RawDeckSession): DeckSession => ({
     rating: asRatingValue(d.rating),
     reviewedAt: d.reviewedAt,
     totalCards: d.totalCards ?? null,
     correctCards: d.correctCards ?? null,
-  }));
+  });
+  const deckSessions: DeckSession[] = params.deckSessions.map(toDeckSession);
+  const specialtyDeckSessions: DeckSession[] = (params.specialtyDeckSessions ?? []).map(
+    toDeckSession,
+  );
 
   return {
     now: params.now,
     questionBlocks,
     subjectReviews,
     deckSessions,
+    specialtyDeckSessions,
     manualErrors: params.questionErrors.map((e) => ({
       createdAt: e.createdAt,
       errorCount: e.errorCount,

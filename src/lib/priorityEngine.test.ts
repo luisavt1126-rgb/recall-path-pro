@@ -21,6 +21,7 @@ function input(partial: Partial<PriorityEngineInput> = {}): PriorityEngineInput 
     subjectReviews: partial.subjectReviews ?? [],
     deckSessions: partial.deckSessions ?? [],
     manualErrors: partial.manualErrors ?? [],
+    specialtyDeckSessions: partial.specialtyDeckSessions ?? [],
     nextReviewAt: partial.nextReviewAt ?? null,
     lastContactAt: partial.lastContactAt ?? null,
   };
@@ -361,5 +362,36 @@ describe("acerto do Anki", () => {
     );
     ok(r.priorityScore >= 0 && r.priorityScore <= 100);
     ok(Number.isFinite(r.priorityScore));
+  });
+});
+
+describe("baralho da especialidade", () => {
+  const spec = (daysAgo: number, total: number, correct: number) => ({
+    rating: null,
+    reviewedAt: ago(daysAgo),
+    totalCards: total,
+    correctCards: correct,
+  });
+
+  it("acerto baixo no baralho da especialidade deixa frágil uma aula já iniciada", () => {
+    const r = computePrioritySnapshot(
+      input({ lastContactAt: ago(2), specialtyDeckSessions: [spec(1, 50, 30)] }),
+    );
+    strictEqual(r.knowledgeState, "FRAGILE");
+    ok(r.errorScore > 0);
+    ok(r.reason.includes("Anki"));
+  });
+
+  it("não tira uma aula nunca estudada do estado NEW nem cria prioridade", () => {
+    const r = computePrioritySnapshot(input({ specialtyDeckSessions: [spec(1, 50, 10)] }));
+    strictEqual(r.knowledgeState, "NEW");
+    strictEqual(r.priorityScore, 0);
+  });
+
+  it("acerto bom na especialidade não pesa contra a aula", () => {
+    const r = computePrioritySnapshot(
+      input({ lastContactAt: ago(2), specialtyDeckSessions: [spec(1, 50, 46)] }),
+    );
+    strictEqual(r.errorScore, 0);
   });
 });

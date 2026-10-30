@@ -16,11 +16,16 @@ import {
   type RawSubjectContact,
 } from "./priorityEngine.input";
 
-export type BatchSubjectRow = RawSubjectContact & { id: string };
+export type BatchSubjectRow = RawSubjectContact & { id: string; disciplineId?: string | null };
 export type BatchQuestionLogRow = RawQuestionLog & { subjectId: string | null };
 export type BatchReviewRow = RawReview & { subjectId: string | null };
 export type BatchStudySessionRow = RawStudySession & { subjectId: string | null };
-export type BatchDeckRow = RawDeck & { id: string; subjectId: string | null };
+export type BatchDeckRow = RawDeck & {
+  id: string;
+  subjectId: string | null;
+  /** Baralho da especialidade inteira (vale quando não há aula ligada). */
+  disciplineId?: string | null;
+};
 export type BatchDeckSessionRow = RawDeckSession & { deckId: string };
 export type BatchQuestionErrorRow = RawQuestionError & { subjectId: string | null };
 
@@ -61,6 +66,16 @@ export function buildAllPriorityInputs(params: {
     (r) => subjectOfDeck.get(r.deckId) ?? null,
   );
 
+  // Baralhos ligados só à especialidade: sessões agrupadas por disciplina.
+  const disciplineOfDeck = new Map<string, string>();
+  for (const deck of params.decks) {
+    if (!deck.subjectId && deck.disciplineId) disciplineOfDeck.set(deck.id, deck.disciplineId);
+  }
+  const deckSessionsByDiscipline = groupBy(
+    params.deckSessions,
+    (r) => disciplineOfDeck.get(r.deckId) ?? null,
+  );
+
   return params.subjects.map((subject) => ({
     subjectId: subject.id,
     input: buildPriorityEngineInput({
@@ -71,6 +86,9 @@ export function buildAllPriorityInputs(params: {
       decks: decksBySubject.get(subject.id) ?? [],
       deckSessions: deckSessionsBySubject.get(subject.id) ?? [],
       questionErrors: errorsBySubject.get(subject.id) ?? [],
+      specialtyDeckSessions: subject.disciplineId
+        ? (deckSessionsByDiscipline.get(subject.disciplineId) ?? [])
+        : [],
       now: params.now,
     }),
   }));

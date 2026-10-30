@@ -133,3 +133,39 @@ describe("needsDailyRecalculation", () => {
     );
   });
 });
+
+describe("buildAllPriorityInputs — baralho da especialidade", () => {
+  const result = buildAllPriorityInputs({
+    now,
+    subjects: [
+      { id: "arritmias", disciplineId: "cardio", ...emptyContact },
+      { id: "ic", disciplineId: "cardio", ...emptyContact },
+      { id: "tireoide", disciplineId: "endo", ...emptyContact },
+    ],
+    questionLogs: [],
+    reviews: [],
+    studySessions: [],
+    decks: [
+      { id: "deck-cardio", subjectId: null, disciplineId: "cardio", nextReviewAt: ago(3) },
+      { id: "deck-ic", subjectId: "ic", disciplineId: null, nextReviewAt: null },
+    ],
+    deckSessions: [
+      { deckId: "deck-cardio", rating: null, reviewedAt: ago(1), totalCards: 40, correctCards: 25 },
+      { deckId: "deck-ic", rating: "bom", reviewedAt: ago(1), totalCards: 10, correctCards: 9 },
+    ],
+    questionErrors: [],
+  });
+  const byId = new Map(result.map((r) => [r.subjectId, r.input]));
+
+  it("entrega as sessões do baralho da especialidade a todas as aulas dela", () => {
+    strictEqual(byId.get("arritmias")!.specialtyDeckSessions!.length, 1);
+    strictEqual(byId.get("ic")!.specialtyDeckSessions!.length, 1);
+    strictEqual(byId.get("tireoide")!.specialtyDeckSessions!.length, 0);
+  });
+
+  it("baralho da especialidade não conta como baralho/vencimento da aula", () => {
+    strictEqual(byId.get("arritmias")!.deckSessions.length, 0);
+    strictEqual(byId.get("arritmias")!.nextReviewAt, null);
+    strictEqual(byId.get("ic")!.deckSessions.length, 1);
+  });
+});
