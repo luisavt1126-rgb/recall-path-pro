@@ -53,7 +53,9 @@ export function scheduleReview(state: SrsState, rating: Rating) {
   if (rating === "muito_dificil") {
     interval = 1;
   } else if (rating === "dificil") {
-    interval = previous > 0 ? Math.max(1, previous * 0.6) : 1;
+    // Como no Anki: Difícil ainda avança, só que pouco (1,2x).
+    // Quem encurta o intervalo é "Novamente".
+    interval = previous > 0 ? previous * 1.2 : 1;
   } else if (reps <= 1) {
     interval = rating === "facil" ? 3 : 2;
   } else if (reps === 2) {
