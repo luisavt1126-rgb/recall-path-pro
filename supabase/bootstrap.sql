@@ -140,6 +140,10 @@ CREATE TABLE IF NOT EXISTS public.anki_decks (
 ALTER TABLE public.anki_decks ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own decks" ON public.anki_decks;
 CREATE POLICY "own decks" ON public.anki_decks FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+-- Baralho ligado a uma especialidade inteira (migração 20261030013000)
+ALTER TABLE public.anki_decks
+  ADD COLUMN IF NOT EXISTS discipline_id uuid REFERENCES public.disciplines(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS anki_decks_discipline_id_idx ON public.anki_decks (discipline_id);
 
 -- ============ deck_sessions ============
 CREATE TABLE IF NOT EXISTS public.deck_sessions (
