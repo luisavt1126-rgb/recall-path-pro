@@ -194,8 +194,9 @@ function Dashboard() {
     };
   });
 
-  const topSubjects = [...stats.entries()]
-    .map(([id, s]) => ({ name: subjects.find((x) => x.id === id)?.name ?? "—", ...s }))
+  // Relatório do mês: só as questões registradas a partir do dia 1 do mês atual.
+  const topSubjects = [...questionStatsBySubject(monthLogs).entries()]
+    .map(([id, s]) => ({ id, name: subjects.find((x) => x.id === id)?.name ?? "—", ...s }))
     .filter((s) => s.total >= 5)
     .sort((a, b) => (b.accuracy ?? 0) - (a.accuracy ?? 0))
     .slice(0, 5);
@@ -476,7 +477,7 @@ function Dashboard() {
         ) : (
           <div className="space-y-2 text-sm">
             {topSubjects.map((s) => (
-              <div key={s.name} className="flex items-center gap-3">
+              <div key={s.id} className="flex items-center gap-3">
                 <span className="w-40 shrink-0 truncate text-xs">{s.name}</span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
                   <div

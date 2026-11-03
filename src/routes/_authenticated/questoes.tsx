@@ -198,7 +198,9 @@ function QuestionsPage() {
             />
           </Field>
           <div className="lg:col-span-3">
-            <button className={buttonClass}>Salvar registro</button>
+            <button className={buttonClass} disabled={addLog.isPending}>
+              {addLog.isPending ? "Salvando…" : "Salvar registro"}
+            </button>
           </div>
         </form>
       </Panel>
