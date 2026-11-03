@@ -42,6 +42,7 @@ import {
   formatHours,
   formatTime,
   isSameDay,
+  startOfDay,
   startOfWeek,
 } from "@/lib/format";
 
@@ -102,7 +103,8 @@ function Dashboard() {
     .sort((a, b) => b.score - a.score);
 
   const overdue = ranked.filter(
-    (r) => r.subject.next_review_at && new Date(r.subject.next_review_at) < today,
+    // Antes de hoje (as que vencem hoje contam em "para hoje", não aqui).
+    (r) => r.subject.next_review_at && new Date(r.subject.next_review_at) < startOfDay(today),
   );
   const dueToday = ranked.filter(
     (r) => r.subject.next_review_at && isSameDay(new Date(r.subject.next_review_at), today),

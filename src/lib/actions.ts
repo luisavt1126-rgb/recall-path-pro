@@ -126,13 +126,14 @@ export function useLogStudySession() {
           .select("first_studied_at")
           .eq("id", input.subject_id)
           .maybeSingle();
-        await supabase
+        const { error: subjectError } = await supabase
           .from("subjects")
           .update({
             last_studied_at: startedAt,
             first_studied_at: subject?.first_studied_at ?? startedAt,
           })
           .eq("id", input.subject_id);
+        if (subjectError) throw subjectError;
       }
 
       if (input.subject_id) {
@@ -172,7 +173,8 @@ export async function startSubjectCycle(subjectId: string, at?: string) {
     if (!Number(subject["interval_days"])) patch.interval_days = 1;
   }
   if (Object.keys(patch).length === 0) return;
-  await supabase.from("subjects").update(patch).eq("id", subjectId);
+  const { error } = await supabase.from("subjects").update(patch).eq("id", subjectId);
+  if (error) throw error;
 }
 
 /**
@@ -263,10 +265,11 @@ export async function nudgeMasteryFromQuestions(subjectId: string, accuracyPct: 
     .maybeSingle();
   if (!subject) return;
   const current = Number(subject["mastery"] ?? 0);
-  await supabase
+  const { error } = await supabase
     .from("subjects")
     .update({ mastery: clampMastery(current * 0.8 + accuracyPct * 0.2) })
     .eq("id", subjectId);
+  if (error) throw error;
 }
 
 /** Ajusta o domínio do assunto em +/- delta pontos, limitado a 0–100. */
@@ -277,10 +280,11 @@ export async function nudgeMastery(subjectId: string, delta: number) {
     .eq("id", subjectId)
     .maybeSingle();
   if (!subject) return;
-  await supabase
+  const { error } = await supabase
     .from("subjects")
     .update({ mastery: clampMastery(Number(subject["mastery"] ?? 0) + delta) })
     .eq("id", subjectId);
+  if (error) throw error;
 }
 
 /**

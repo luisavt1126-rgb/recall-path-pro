@@ -4,7 +4,7 @@ import { useSubjectPriorities } from "@/lib/subjectPriority";
 import { RATING_LABEL, TARGET_RETENTION, type Rating } from "@/lib/srs";
 import { useRateSubject } from "@/lib/actions";
 import { Panel, PriorityTag, Stat, Empty, buttonClass, ghostButtonClass } from "@/components/bits";
-import { addDays, formatDate, isSameDay } from "@/lib/format";
+import { addDays, formatDate, isSameDay, startOfDay } from "@/lib/format";
 import { PriorityRankings } from "@/components/PriorityRankings";
 
 export const Route = createFileRoute("/_authenticated/revisoes")({
@@ -38,8 +38,12 @@ function ReviewsPage() {
     })
     .sort((a, b) => b.score - a.score);
 
+  // Atrasadas = vencidas antes de hoje; "para hoje" = vencem hoje (sem repetir
+  // o mesmo assunto nas duas listas). Assuntos nunca estudados não são revisão:
+  // ficam fora da fila e aparecem só como contagem, com link para Assuntos.
+  const todayStart = startOfDay(today);
   const overdue = items.filter(
-    (i) => i.subject.next_review_at && new Date(i.subject.next_review_at) < today,
+    (i) => i.subject.next_review_at && new Date(i.subject.next_review_at) < todayStart,
   );
   const dueToday = items.filter(
     (i) => i.subject.next_review_at && isSameDay(new Date(i.subject.next_review_at), today),
@@ -48,10 +52,11 @@ function ReviewsPage() {
     (i) =>
       i.subject.next_review_at &&
       new Date(i.subject.next_review_at) > today &&
+      !isSameDay(new Date(i.subject.next_review_at), today) &&
       new Date(i.subject.next_review_at) <= addDays(today, 7),
   );
-  const never = items.filter((i) => !i.subject.next_review_at);
-  const queue = [...overdue, ...dueToday, ...never];
+  const notStarted = items.filter((i) => !i.subject.next_review_at).length;
+  const queue = [...overdue, ...dueToday];
 
   const disciplineName = (id: string) =>
     disciplines.find((d) => d.id === id)?.name ?? "Sem disciplina";
@@ -117,6 +122,14 @@ function ReviewsPage() {
               </div>
             ))}
           </div>
+        )}
+        {notStarted > 0 && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            {notStarted} assunto(s) ainda sem primeiro estudo ficam fora da fila.{" "}
+            <Link to="/assuntos" className="underline hover:text-brand">
+              Ver em Assuntos
+            </Link>
+          </p>
         )}
       </Panel>
 
