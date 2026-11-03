@@ -54,24 +54,24 @@ describe("buildAllPriorityInputs", () => {
 
   it("dá o mesmo resultado que montar assunto por assunto", () => {
     const single = buildPriorityEngineInput({
-      subject: params.subjects[0],
-      questionLogs: [params.questionLogs[0]],
-      reviews: [params.reviews[0]],
+      subject: params.subjects[0]!,
+      questionLogs: [params.questionLogs[0]!],
+      reviews: [params.reviews[0]!],
       studySessions: [],
       decks: [],
       deckSessions: [],
-      questionErrors: [params.questionErrors[0]],
+      questionErrors: [params.questionErrors[0]!],
       now,
     });
-    deepStrictEqual(computePrioritySnapshot(result[0].input), computePrioritySnapshot(single));
+    deepStrictEqual(computePrioritySnapshot(result[0]!.input), computePrioritySnapshot(single));
   });
 
   it("ignora registros sem assunto e liga sessões de baralho ao assunto do baralho", () => {
-    const b = result[1].input;
+    const b = result[1]!.input;
     strictEqual(b.questionBlocks.length, 0);
     strictEqual(b.deckSessions.length, 1);
-    strictEqual(b.deckSessions[0].rating, "muito_dificil");
-    strictEqual(b.nextReviewAt, params.decks[0].nextReviewAt);
+    strictEqual(b.deckSessions[0]!.rating, "muito_dificil");
+    strictEqual(b.nextReviewAt, params.decks[0]!.nextReviewAt);
   });
 });
 
