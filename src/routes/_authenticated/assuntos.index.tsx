@@ -36,29 +36,29 @@ export const Route = createFileRoute("/_authenticated/assuntos/")({
   component: SubjectsPage,
 });
 
-/** Garante que as especialidades (classificadores) existam, sem duplicar. */
+/**
+ * Garante que as especialidades (classificadores) existam, sem duplicar.
+ * Só cria as que faltam: nunca apaga disciplinas, porque apagar uma
+ * disciplina apaga junto os assuntos dela (e o histórico ligado a eles).
+ */
 function useSeedCoreAreas(disciplines: { id: string; name: string }[], ready: boolean) {
   const qc = useQueryClient();
   const ran = useRef(false);
 
   useEffect(() => {
     if (!ready || ran.current) return;
-    const expected = new Set(
-      CORE_AREAS.flatMap((a) => a.specialties).map((n) => n.trim().toLowerCase()),
-    );
     const actual = new Set(disciplines.map((d) => d.name.trim().toLowerCase()));
-    const needsReseed =
-      expected.size !== actual.size || [...expected].some((n) => !actual.has(n));
-    if (!needsReseed) return;
+    const missing = CORE_AREAS.flatMap((a) => a.specialties).filter(
+      (name) => !actual.has(name.trim().toLowerCase()),
+    );
+    if (missing.length === 0) return;
     ran.current = true;
     (async () => {
       try {
         const userId = await requireUserId();
-        await supabase.from("disciplines").delete().eq("user_id", userId);
-        const all = CORE_AREAS.flatMap((a) =>
-          a.specialties.map((name) => ({ user_id: userId, name })),
-        );
-        const { error } = await supabase.from("disciplines").insert(all);
+        const { error } = await supabase
+          .from("disciplines")
+          .insert(missing.map((name) => ({ user_id: userId, name })));
         if (error) throw error;
         qc.invalidateQueries({ queryKey: ["disciplines"] });
       } catch (e) {
