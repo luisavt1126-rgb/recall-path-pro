@@ -52,6 +52,9 @@ export type RawQuestionError = {
   errorCount: number;
   reason: string | null;
   status?: string | null | undefined;
+  priority?: string | null | undefined;
+  errorDate?: string | null | undefined;
+  stillWrongCount?: number | null | undefined;
 };
 
 const RATING_VALUES: ReadonlySet<string> = new Set([
@@ -168,6 +171,9 @@ export function buildPriorityEngineInput(params: {
       errorCount: e.errorCount,
       reason: e.reason,
       ...(e.status != null ? { status: e.status } : {}),
+      ...(e.priority != null ? { priority: e.priority } : {}),
+      ...(e.errorDate != null ? { errorDate: e.errorDate } : {}),
+      ...(e.stillWrongCount != null ? { stillWrongCount: e.stillWrongCount } : {}),
     })),
     nextReviewAt: computeEffectiveNextReviewAt(params.subject.nextReviewAt, params.decks, params.now),
     lastContactAt: computeLastContactAt(

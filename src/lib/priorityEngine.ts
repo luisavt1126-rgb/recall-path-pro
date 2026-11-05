@@ -12,7 +12,7 @@
 
 import { ERROR_STATUS_WEIGHT, normalizeStatus } from "./errorStatus";
 
-export const ENGINE_VERSION = "1.4.0";
+export const ENGINE_VERSION = "1.5.0";
 
 export type KnowledgeState =
   | "NEW"
@@ -53,6 +53,19 @@ export type ManualError = {
   reason: string | null;
   /** "ativo" | "em_melhora" | "resolvido" | "recorrente" (default "ativo"). */
   status?: string | undefined;
+  /** Prioridade do caderno ("alta" | "media" | "superado"); quando presente, define o peso. */
+  priority?: string | undefined;
+  /** Data do erro escolhida pela usuária (yyyy-mm-dd); usada na janela de recência. */
+  errorDate?: string | undefined;
+  /** Quantas vezes marcou "Ainda erro" no segundo ciclo (sinal de recorrência). */
+  stillWrongCount?: number | undefined;
+};
+
+/** Peso de cada prioridade do caderno de erros no componente de erros. */
+export const ERROR_PRIORITY_WEIGHT: Record<string, number> = {
+  alta: 1,
+  media: 0.6,
+  superado: 0,
 };
 
 export type PriorityEngineInput = {
@@ -401,16 +414,24 @@ function errorScore(
   const weighted = manualErrors
     .map((e) => {
       const status = normalizeStatus(e.status);
-      return { ...e, status, weight: ERROR_STATUS_WEIGHT[status] };
+      const weight =
+        e.priority != null && e.priority in ERROR_PRIORITY_WEIGHT
+          ? ERROR_PRIORITY_WEIGHT[e.priority]!
+          : ERROR_STATUS_WEIGHT[status];
+      const at = e.errorDate ? `${e.errorDate}T12:00:00` : e.createdAt;
+      return { ...e, status, weight, at };
     })
     .filter((e) => e.weight > 0);
 
   const manualRecentErrors = weighted
-    .filter((e) => new Date(e.createdAt).getTime() > nowMs - ERROR_MANUAL_WINDOW_DAYS * DAY_MS)
+    .filter((e) => new Date(e.at).getTime() > nowMs - ERROR_MANUAL_WINDOW_DAYS * DAY_MS)
     .reduce((sum, e) => sum + e.errorCount * e.weight, 0);
 
   const manualEntries = weighted.length;
-  const weightedEntries = weighted.reduce((sum, e) => sum + e.weight, 0);
+  const weightedEntries = weighted.reduce(
+    (sum, e) => sum + e.weight * (1 + Math.max(0, e.stillWrongCount ?? 0)),
+    0,
+  );
 
   const volumeErrors = recentErrors + manualRecentErrors;
   const volume =

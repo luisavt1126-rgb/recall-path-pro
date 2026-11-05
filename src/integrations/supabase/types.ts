@@ -352,13 +352,55 @@ export type Database = {
         }
         Relationships: []
       }
+      question_error_reviews: {
+        Row: {
+          error_id: string
+          id: string
+          outcome: string
+          reviewed_at: string
+          user_id: string
+        }
+        Insert: {
+          error_id: string
+          id?: string
+          outcome: string
+          reviewed_at?: string
+          user_id: string
+        }
+        Update: {
+          error_id?: string
+          id?: string
+          outcome?: string
+          reviewed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_error_reviews_error_id_fkey"
+            columns: ["error_id"]
+            isOneToOne: false
+            referencedRelation: "question_errors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       question_errors: {
         Row: {
+          banca: string | null
+          correction: string | null
           created_at: string
           error_count: number
+          error_date: string
+          exam_year: number | null
+          how_to_avoid: string | null
           id: string
+          last_reviewed_at: string | null
           note: string | null
+          origin: string
+          priority: string
+          question_ref: string | null
           reason: string
+          review_count: number
           status: string
           subject_id: string
           subtopic_id: string | null
@@ -368,11 +410,21 @@ export type Database = {
           what: string | null
         }
         Insert: {
+          banca?: string | null
+          correction?: string | null
           created_at?: string
           error_count?: number
+          error_date?: string
+          exam_year?: number | null
+          how_to_avoid?: string | null
           id?: string
+          last_reviewed_at?: string | null
           note?: string | null
+          origin?: string
+          priority?: string
+          question_ref?: string | null
           reason: string
+          review_count?: number
           status?: string
           subject_id: string
           subtopic_id?: string | null
@@ -382,11 +434,21 @@ export type Database = {
           what?: string | null
         }
         Update: {
+          banca?: string | null
+          correction?: string | null
           created_at?: string
           error_count?: number
+          error_date?: string
+          exam_year?: number | null
+          how_to_avoid?: string | null
           id?: string
+          last_reviewed_at?: string | null
           note?: string | null
+          origin?: string
+          priority?: string
+          question_ref?: string | null
           reason?: string
+          review_count?: number
           status?: string
           subject_id?: string
           subtopic_id?: string | null

@@ -146,6 +146,9 @@ export async function recalculateSubjectPriority(
         errorCount: e.error_count,
         reason: e.reason,
         status: e.status,
+        priority: e.priority,
+        errorDate: e.error_date,
+        stillWrongCount: e.priority === "superado" ? 0 : e.review_count,
       }),
     ),
     now,
@@ -265,7 +268,7 @@ export async function recalculateAllSubjects(
       fetchAllPages((a, b) =>
         supabase
           .from("question_errors")
-          .select("subject_id, created_at, error_count, reason, status")
+          .select("subject_id, created_at, error_count, reason, status, priority, error_date, review_count")
           .eq("user_id", userId)
           .order("id")
           .range(a, b),
@@ -318,6 +321,9 @@ export async function recalculateAllSubjects(
       errorCount: e.error_count,
       reason: e.reason,
       status: e.status,
+      priority: e.priority,
+      errorDate: e.error_date,
+      stillWrongCount: e.priority === "superado" ? 0 : e.review_count,
     })),
   });
 
